@@ -2,7 +2,7 @@
 import { render } from 'preact';
 
 function openQuiz(): void {
-  const url = chrome.runtime.getURL('quiz.html');
+  const url = chrome.runtime.getURL('src/quiz/index.html');
   chrome.tabs?.create?.({ url });
 }
 
@@ -23,13 +23,14 @@ function App() {
     <div class="wrap">
       <h1>WebVoca</h1>
       <div class="actions">
-        <button onClick={openQuiz}>모바일 퀴즈 열기</button>
-        <button class="secondary" onClick={downloadCsv}>CSV 다운로드</button>
-        <small>단어장(IndexedDB) 기반 기능</small>
+        <button onClick={openQuiz}>모바???�즈 ?�기</button>
+        <button class="secondary" onClick={downloadCsv}>CSV ?�운로드</button>
+        <small>?�어??IndexedDB) 기반 기능</small>
       </div>
     </div>
   );
 }
 
 render(<App />, document.getElementById('root')!);
+
 

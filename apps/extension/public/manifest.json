@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "action": {
     "default_title": "WebVoca",
-    "default_popup": "popup.html"
+    "default_popup": "src/popup/index.html"
   },
   "permissions": [
     "storage",
