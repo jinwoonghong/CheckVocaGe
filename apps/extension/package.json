@@ -1,0 +1,24 @@
+{
+  "name": "@checkvocage/extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --config vite.content.config.ts && vite build --config vite.background.config.ts && vite build --config vite.popup.config.ts && vite build --config vite.quiz.config.ts",
+    "lint": "eslint --ext .ts,.tsx src",
+    "test": "vitest --run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "preact": "^10.23.1",
+    "dexie": "^4.0.8"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "@types/chrome": "0.0.262",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.8",
+    "vitest": "^1.6.0"
+  }
+}

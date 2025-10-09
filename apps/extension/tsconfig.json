@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "outDir": "dist",
+    "types": [
+      "node"
+    ],
+    "moduleResolution": "Node"
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/content/utils/context.ts"
+  ]
+}
