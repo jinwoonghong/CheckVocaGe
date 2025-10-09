@@ -46,7 +46,9 @@ function Quiz() {
   const grade = async (g: 2 | 4 | 5) => {
     try {
       await applySm2Review(card.id, g);
-    } catch {}
+    } catch {
+      // ignore
+    }
     next();
   };
 
