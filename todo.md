@@ -1,79 +1,30 @@
-# TODO
+ï»¿# TODO (UTF-8 ì •ë¦¬ë³¸)
 
-## È¯°æ ¼³Á¤ ¹× µµ±¸
-- [x] pnpm ¿öÅ©½ºÆäÀÌ½º ±¸Á¶(`apps/extension`, `apps/web`, `packages/core`) ÃÊ±âÈ­.
-- [x] °øÅë TypeScript, ESLint, Prettier, Vitest ±â¹Ý ¼³Á¤ ±¸¼º.
-- [x] `.env.example` Ãß°¡ ¹× Free Plan¿¡¼­ ¿ø°Ý DB ¾øÀÌ IndexedDB »ç¿ë ¹æ¹ý ¹®¼­È­.
-- [x] ÃÊ±â ½ºÄ³Æúµù °ËÁõÀ» À§ÇØ lint¿Í Å¸ÀÔ Ã¼Å· ½ÇÇà.
+## ì™„ë£Œ (v1.0.0)
+- ì½˜í…ì¸  ì„ íƒ/ë“œëž˜ê·¸ ê°ì§€, Tooltip UI(IPA/ë°œìŒ/ì •ì˜ ë¶ˆë¦¿/ë°”ê¹¥ í´ë¦­Â·X ë‹«ê¸°)
+- ì˜â†’í•œ ëœ»(ë„¤ì´ë²„) + IPA/ì˜¤ë””ì˜¤(dictionaryapi.dev) + 10ë¶„ ìºì‹œ, íƒœê·¸/ì—”í‹°í‹° ì •ë¦¬
+- IndexedDB ì €ìž¥, FIFO ëŒ€ê¸°ì—´ ì•ˆì •í™”, í…ŒìŠ¤íŠ¸/íƒ€ìž…ì²´í¬/ë¹Œë“œ/ë¦°íŠ¸ í†µê³¼
+- í™•ìž¥ íŒì—…: ìµœê·¼ ë‹¨ì–´ ëª©ë¡, ëª¨ë°”ì¼ì›¹ í€´ì¦ˆ ì—´ê¸°, í€´ì¦ˆ ë§í¬ ë³µì‚¬, CSV ë‹¤ìš´ë¡œë“œ(UTF-8 BOM)
+- ëª¨ë°”ì¼ì›¹ /quiz: Due ìš°ì„  ì¶œì œ, SM-2 í‰ê°€(Again/Good/Easy), ìŠ¤ëƒ…ìƒ· í•´ì‹œ import
 
-## ºê¶ó¿ìÀú È®Àå - ´Ü¾î ¼öÁý
-- [x] ¼öÁý ÇÃ·Î¿ì ¼³°è¼­ ÀÛ¼º: »ç¿ëÀÚ ÀÌº¥Æ® ¡æ ¸Þ½ÃÁö ¡æ Ä³½Ã ÀúÀå±îÁöÀÇ ¼ø¼­ ´ÙÀÌ¾î±×·¥°ú ¿À·ù/¿ÀÇÁ¶óÀÎ ½Ã³ª¸®¿À Á¤¸®.
-- [x] `content.js` ¼±ÅÃ °¨Áö ¸ðµâ ±¸Çö: ´õºíÅ¬¸¯¡¤µå·¡±× ÀÌº¥Æ® ¸®½º³Ê, ÅØ½ºÆ® Á¤±ÔÈ­, ÁÖº¯ ¹®Àå 2°³ ¹üÀ§ ¹®¸Æ ÃßÃâ, Áßº¹ ¼±ÅÃ Â÷´Ü ·ÎÁ÷.
-- [x] `content.js` »óÅÂ °ü¸® ±¸¼º: ¼±ÅÃ/·Îµù/¼º°ø/½ÇÆÐ »óÅÂ, Åä½ºÆ® ¸Þ½ÃÁö, ´Ù±¹¾î¡¤´ÙÅ© ¸ðµå ½ºÅ¸ÀÏ ÅäÅ« Á¤ÀÇ.
-- [x] Shadow DOM ÅøÆÁ UI Á¦ÀÛ: ´Ü¾î¡¤¹®¸Æ ¹Ì¸®º¸±â, ÀúÀå/Ãë¼Ò/Áñ°ÜÃ£±â ¹öÆ°, Enter/Esc ´ÜÃàÅ° Áö¿ø, ½Ã°¢Àû ÇÇµå¹é ¾Ö´Ï¸ÞÀÌ¼Ç.
-- [x] `background.js` ¸Þ½ÃÁö ÆÄÀÌÇÁ ±¸Ãà: ¿äÃ» Å¥ °ü¸®, µ¿ÀÏ ´Ü¾î ¿¬¼Ó ¿äÃ» µð¹Ù¿î½º, Àç½Ãµµ ¹é¿ÀÇÁ¿Í ³×Æ®¿öÅ© ¿À·ù ÇÚµé¸µ.
-- [x] ¼öÁý ÆäÀÌ·Îµå ½ºÅ°¸¶ Á¤ÀÇ ¹× °ËÁõ: ´Ü¾î¡¤¿ø¹® URL¡¤¹®¸Æ ¹üÀ§¡¤¼±ÅÃ ½Ã°¢¡¤»ç¿ëÀÚ ¸Þ¸ð ÇÊµå Æ÷ÇÔ, `packages/core` Å¸ÀÔ°ú µ¿±âÈ­.
-- [x] declarativeNetRequest ±ÔÄ¢ ±¸¼º: Çã¿ë µµ¸ÞÀÎ È­ÀÌÆ®¸®½ºÆ®, referer Çì´õ ÀÚµ¿ ¼³Á¤, ±ÔÄ¢ ¹öÀü °ü¸® ½ºÅ©¸³Æ® ÀÛ¼º.
-- [x] IndexedDB ÀúÀå ¾î´ðÅÍ ¿¬µ¿: ¼º°ø/½ÇÆÐ ÄÝ¹é, ¿ÀÇÁ¶óÀÎ Å¥(pending ½ºÅä¾î) Ã³¸®, Ä³½Ã ¿ë·® ÃÊ°ú ½Ã LRU »èÁ¦.
-- [x] °üÃø/·Î±× ¼öÁý: Sentry breadcrumb Ãß°¡, »ç¿ëÀÚ ÀÌº¥Æ® ·Î±ë, ÁÖ¿ä ¿À·ù ¸Þ½ÃÁö ÇöÁöÈ­.
-- [x] Å×½ºÆ®: ÅØ½ºÆ® Á¤±ÔÈ­¡¤¹®¸Æ ÃßÃâ ´ÜÀ§ Å×½ºÆ®, ¸Þ½ÃÁö Å¥ µð¹Ù¿î½º Å×½ºÆ®, Playwright ¼±ÅÃ¡æÅøÆÁ¡æÀúÀå E2E, ¿ÀÇÁ¶óÀÎ Àç½Ãµµ ¼öµ¿ °ËÁõ Ã¼Å©¸®½ºÆ®.
+## ì§„í–‰ ì¤‘ (ëª¨ë°”ì¼ì›¹ + í´ë¼ìš°ë“œ)
+- [x] Google ë¡œê·¸ì¸(Auth) ê°€ë“œ ë„ìž…, ì‚¬ìš©ìžëª…/ë¡œê·¸ì•„ì›ƒ ë…¸ì¶œ
+- [x] Firestore ë™ê¸°í™” ìœ í‹¸: ìŠ¤ëƒ…ìƒ· ì—…ë¡œë“œ, ë¦¬ë·° ìƒíƒœ ë°˜ì˜
+- [x] í™•ìž¥â†’ì›¹ ìŠ¤ëƒ…ìƒ· ì „ë‹¬(í•´ì‹œ) ì—°ë™
+- [ ] Firebase Hosting ë°°í¬ íŒŒì´í”„ë¼ì¸ êµ¬ì„± ë° í”„ë¡œì íŠ¸ ì—°ê²°
 
-## °øÀ¯ Ä³½Ã ¹× ÄÚ¾î ·ÎÁ÷
-- [x] µ¥ÀÌÅÍ »çÀü ÀÛ¼º: `WordEntry`, `ContextSnapshot`, `ReviewState`, `QuizSession`, `PendingRequest` ¿£Æ¼Æ¼¿Í ÇÊ¼ö/¿É¼Ç ¼Ó¼º, ID Àü·« ¹®¼­È­.
-- [x] IndexedDB ½ºÅ°¸¶ ¼³°è: ´Ü¾î/¹®¸Æ/º¹½À/ÄûÁî ¼¼¼Ç/¼³Á¤/´ë±â¿­ ½ºÅä¾î Á¤ÀÇ, º¹ÇÕ ÀÎµ¦½º¿Í ¹öÀü ¾÷±×·¹ÀÌµå ´Ü°è ¼ö¸³.
-- [x] Dexie ±â¹Ý ·¹Æ÷ÁöÅä¸® ±¸Çö: Æ®·£Àè¼Ç À¯Æ¿, CRUD(`upsertWordWithContext`, `markKnown`, `getDueReviews`, `popPendingRequest`), ¿À·ù ÄÚµå Ç¥ÁØÈ­.
-- [x] °øÅë ºñÁî´Ï½º ¼­ºñ½º ±¸Çö: Áßº¹ º´ÇÕ¡¤¼öµ¿ ¼öÁ¤ ¿ì¼± ±ÔÄ¢, ¹®¸Æ º´ÇÕ ±âÁØ, »èÁ¦ ÇÃ·¡±× ¹× º¹¿ø ·ÎÁ÷.
-- [x] °í¼öÁØ µµ¸ÞÀÎ API ÀÛ¼º: CSV/SRS/±¤°í ¸ðµâÀÌ Àç»ç¿ëÇÒ ÇÊÅÍ¸µ¡¤ÆäÀÌÂ¡¡¤Á¤·Ä¡¤DTO º¯È¯ ÇÔ¼ö Á¦°ø.
-- [x] Ä³½Ã µ¿±âÈ­ ÈÅ: È®Àå¡¤À¥ °£ ºê·ÎµåÄ³½ºÆ® Ã¤³Î/IndexedDB º¯°æ ÀÌº¥Æ® ´ëÀÀ, ½Ç½Ã°£ UI ¹Ý¿µ ÈÅ ±¸Çö.
-- [x] ¿À·ù º¹±¸ ¹× ¹é¾÷ Àü·«: Ä³½Ã ½º³À¼¦ ³»º¸³»±â/°¡Á®¿À±â, ¼Õ»ó °¨Áö ½Ã ÃÊ±âÈ­/º¹±¸ Èå¸§ Á¤ÀÇ.
-- [x] °³¹ß ÆíÀÇ µµ±¸: ´õ¹Ì µ¥ÀÌÅÍ ½Ãµå ½ºÅ©¸³Æ®, °³¹ßÀÚ¿ë IndexedDB »óÅÂ È®ÀÎ ÄÜ¼Ö ¸í·É.
-- [x] Å×½ºÆ®: µ¥ÀÌÅÍ ¸ðµ¨ ½º³À¼¦ Å×½ºÆ®, Dexie ·¹Æ÷ÁöÅä¸® ´ÜÀ§/ÅëÇÕ Å×½ºÆ®, Ä³½Ã µ¿±âÈ­ ºê·ÎµåÄ³½ºÆ® Å×½ºÆ®, ´ë¿ë·® µ¥ÀÌÅÍ ¼º´É ÃøÁ¤, º¹±¸ ÇÃ·Î¿ì ¼öµ¿ Ã¼Å©¸®½ºÆ®.
+## ë‹¤ìŒ ë‹¨ê³„
+- [ ] Firestore ë³´ì•ˆ ê·œì¹™ ì ê²€Â·ê°•í™”(users/{uid}/words,reviews ê¶Œí•œ)
+- [ ] /quiz UX ê³ ë„í™”(ì§„í–‰ë¥ Â·ëª©í‘œÂ·ì„žê¸°Â·í•„í„°)
+- [ ] íŒì—…: â€˜ëª¨ë°”ì¼ë¡œ ë³´ë‚´ê¸°â€™ ìŠ¤ëƒ…ìƒ· ë§í¬ ë³µì‚¬ ê³ ë„í™”(ì›¹ ë°°í¬ URL ì ìš©)
+- [ ] CSV ë‚´ë³´ë‚´ê¸° ì˜µì…˜(í•„í„°/ê¸°ê°„/ì¦ê²¨ì°¾ê¸°ë§Œ)
 
-## À¥ ¾Û - ´Ü¾îÀå °ü¸®
-- [ ] ¶ó¿ìÆÃ°ú Zustand »óÅÂ ÈÅÀ» Æ÷ÇÔÇÑ Preact UI ½ºÄ³Æúµù.
-- [ ] ¸ñ·Ï/°Ë»ö/ÇÊÅÍ, »ó¼¼ º¸±â, ¼öÁ¤/»èÁ¦ »óÈ£ÀÛ¿ë ±¸Çö.
-- [ ] Å×½ºÆ®: ÄÄÆ÷³ÍÆ® ´ÜÀ§ Å×½ºÆ®, Ä³½Ã µ¥ÀÌÅÍ¸¦ ±â¹ÝÀ¸·Î ÇÑ Playwright CRUD ÇÃ·Î¿ì °ËÁõ.
+## ìš´ì˜/ë°°í¬
+- [x] CI: lint/typecheck/test ì›Œí¬í”Œë¡œ ì¶”ê°€(.github/workflows/ci.yml)
+- [x] Hosting ë°°í¬ ì›Œí¬í”Œë¡œ ì´ˆì•ˆ ì¶”ê°€(.github/workflows/hosting.yml)
+- [ ] Firebase í”„ë¡œì íŠ¸ ì—°ê²°(FIREBASE_SERVICE_ACCOUNT, FIREBASE_PROJECT_ID ì‹œí¬ë¦¿ ì„¤ì •)
+- [ ] firebase.json/.firebaserc í”„ë¡œì íŠ¸ ê°’ í™•ì • ë° rules ë°°í¬
 
-## SRS ½ºÄÉÁÙ·¯ ¿£Áø
-- [ ] ÄÚ¾î ÆÐÅ°Áö¿¡ SM-2 ½ºÅ¸ÀÏ ½ºÄÉÁÙ·¯¿Í º¹½À Å¥ »ý¼º±â ±¸Çö.
-- [ ] º¹½À »óÅÂ °»½ÅÀ» IndexedDB¿¡ Áö¼ÓÀûÀ¸·Î ¹Ý¿µ.
-- [ ] Å×½ºÆ®: »ùÇÃ ÁøÇà µ¥ÀÌÅÍ¸¦ È°¿ëÇÑ ¾Ë°í¸®Áò ´ÜÀ§ Å×½ºÆ®, Ä³½Ã ¿¬µ¿ Å×½ºÆ®.
-
-## ÄûÁî °æÇè
-- [ ] ¿¹Á¤µÈ Ç×¸ñÀ» ºÒ·¯¿À´Â ÄûÁî ¼¼¼Ç »ý¼º±â ±¸Ãà.
-- [ ] Ä«µå/Å¸ÀÚ ÀÔ·Â ÄÄÆ÷³ÍÆ®¿Í ÇÇµå¹é Èå¸§ ±¸Çö.
-- [ ] °á°ú Ã³¸®¸¦ ½ºÄÉÁÙ·¯ °»½Å ¼­ºñ½º¿Í ¿¬°á.
-- [ ] Å×½ºÆ®: ÄÄÆ÷³ÍÆ® Å×½ºÆ®, »óÅÂ º¯È­¸¦ È®ÀÎÇÏ´Â ¿£µå Åõ ¿£µå ÄûÁî ¼¼¼Ç.
-
-## CSV ³»º¸³»±â
-- [x] ´Ü¾îÀå µ¥ÀÌÅÍ CSV ³»º¸³»±â(Å©·Ò downloads API »ç¿ë)
-- [x] ÀúÀå ÆÄÀÏ¸í/ÀÎÄÚµù ¼³Á¤
-- [ ] Å×½ºÆ®: ´ë¿ë·®/Æ¯¼ö¹®ÀÚ ÄÉÀÌ½º
-
-## ±¤°í ¸ðµâ (Free Plan)
-- [ ] ÄûÁî UI ¹è³Ê ½½·Ô°ú CSV ´Ù¿î·Îµå Àü ¸®¿öµå Èå¸§(¸ðÅ· SDK) ¿¬µ¿.
-- [ ] ³ëÃâ ºóµµ Á¦¾î¿Í ¿É¼Ç ÇØÁ¦ ÇÃ·¡±× ±¸¼º.
-- [ ] Å×½ºÆ®: ÄÄÆ÷³ÍÆ® ½º³À¼¦, ¸ðÅ· SDK »óÈ£ÀÛ¿ë Å×½ºÆ®, ¼öµ¿ ±¤°í °Ë¼ö Ã¼Å©¸®½ºÆ®.
-
-## ÅëÇÕ ¹× QA
-- [ ] Playwright E2E: ¼öÁý ¡æ °ü¸® ¡æ º¹½À ¡æ ÄûÁî ¡æ CSV ¡æ ±¤°í ÀüÃ¼ Èå¸§.
-- [ ] IndexedDB Äõ¸® ¼º´É°ú Ä³½Ã ¿ë·® µ¿ÀÛ Á¡°Ë.
-- [ ] Sentry °èÃø ½º¸ðÅ© Å×½ºÆ®.
-
-## ¹èÆ÷ ¹× ¿î¿µ
-- [ ] Vite »êÃâ¹°À» Æ÷ÇÔÇÑ GitHub Actions ÆÄÀÌÇÁ¶óÀÎ(lint ¡æ test ¡æ build) ±¸¼º.
-- [ ] À¥ ¾Û¿ë Firebase Hosting ÀÚµ¿ ¹èÆ÷.
-- [ ] È®Àå¿ë Chrome Web Store ÆÐÅ°Â¡/¾÷·Îµå ÀÚµ¿È­ ÁØºñ.
-
-## Pro Plan ÁØºñ
-- [ ] Firebase Auth/Firestore ½ºÅ°¸¶¿Í µ¿±âÈ­ Àü·« ÃÊ¾È ÀÛ¼º.
-- [ ] ·ÎÄÃ Ä³½Ã¿¡¼­ Pro ±â´ÉÀ¸·Î ÀüÈ¯µÇ´Â °ÔÀÌÆÃ ¹× ¸¶ÀÌ±×·¹ÀÌ¼Ç ´Ü°è ¼³°è.
-- [ ] Pro ¾÷±×·¹ÀÌµå ·Ñ¾Æ¿ô/Å×½ºÆ® °èÈ¹ ¹®¼­È­.
-## »çÀü Á¶È¸/¹ßÀ½ (¿µÇÑ»çÀü)
-- [ ] ³×ÀÌ¹ö enko API Á¶È¸¿ë ¹é±×¶ó¿îµå ¶ó¿ìÆÃ Ãß°¡ ¹× Referer DNR ±ÔÄ¢ È®ÀÎ.
-- [ ] ´õºíÅ¬¸¯/µå·¡±× ¼±ÅÃ Æ®¸®°Å·Î ´Ü¾î¡æ¶æ/IPA/¿Àµð¿À URL Á¶È¸ Èå¸§ ¿Ï¼º.
-- [ ] Tooltip UI¿¡ IPA(//) Ç¥±â ¹× ¹ßÀ½ Àç»ý ¹öÆ° Ãß°¡(¿Àµð¿À URL Á¸Àç ½Ã È°¼ºÈ­).
-- [ ] ¹é±×¶ó¿îµå¿¡¼­ IPA/audioUrl º¸°­(dictionaryapi.dev) º´ÇÕ ·ÎÁ÷ ±¸Çö.
-- [ ] content ? background ¸Þ½ÃÁö(CHECKVOCA_LOOKUP) Á¤ÀÇ ¹× ¿¡·¯ Ã³¸®.
-- [ ] Å×½ºÆ®: ³×Æ®¿öÅ© mocking ±â¹Ý Á¤ÀÇ/¿Àµð¿À Á¶È¸, Tooltip »óÅÂ ÀüÀÌ Å×½ºÆ®.
-
+## ì°¸ê³ 
+- ì›¹ í™˜ê²½ë³€ìˆ˜ ì˜ˆì‹œ: apps/web/.env.example (Firebase ì„¤ì • í•„ìš”)
+- Hosting ì„¤ì •: firebase.json(ë¦¬ë¼ì´íŠ¸ â†’ SPA), firestore.rules(ê¶Œí•œ), firestore.indexes.json

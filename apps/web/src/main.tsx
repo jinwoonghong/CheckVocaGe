@@ -1,4 +1,4 @@
-﻿import { render } from 'preact';
+import { render } from 'preact';
 import { Route, Router } from 'wouter-preact';
 import { useEffect } from 'preact/hooks';
 import { QuizPage } from './pages/Quiz';
@@ -28,3 +28,4 @@ function App() {
 }
 
 render(<App />, document.getElementById('root')!);
+
