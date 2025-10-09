@@ -13,6 +13,7 @@ import {
   importSnapshot as importRepositorySnapshot,
 } from '../storage/repository';
 import { getDatabase } from '../storage/db';
+import type { ReviewState } from '../models';
 import { publishCacheEvent } from '../utils/broadcast';
 
 export async function registerSelection(payload: SelectionPayload): Promise<WordEntry> {
@@ -47,6 +48,61 @@ export const saveReviewStateRecord = saveReviewState;
 export const saveQuizSessionRecord = saveQuizSession;
 export const exportSnapshot = exportRepositorySnapshot;
 export const importSnapshot = importRepositorySnapshot;
+
+export type ReviewGrade = 0 | 1 | 2 | 3 | 4 | 5;
+
+function now(): number {
+  return Date.now();
+}
+
+function days(n: number): number {
+  return Math.round(n * 24 * 60 * 60 * 1000);
+}
+
+function applySm2(state: ReviewState, grade: ReviewGrade): ReviewState {
+  let { easeFactor, repetitions, interval } = state;
+  if (grade < 3) {
+    repetitions = 0;
+    interval = 1;
+  } else {
+    if (repetitions === 0) interval = 1;
+    else if (repetitions === 1) interval = 6;
+    else interval = Math.round(interval * easeFactor);
+    repetitions += 1;
+  }
+  easeFactor = easeFactor + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02));
+  if (easeFactor < 1.3) easeFactor = 1.3;
+
+  const reviewedAt = now();
+  return {
+    ...state,
+    easeFactor,
+    repetitions,
+    interval,
+    nextReviewAt: reviewedAt + days(interval),
+    history: [...state.history, { reviewedAt, grade } as any],
+  };
+}
+
+export async function applySm2Review(wordId: string, grade: ReviewGrade): Promise<ReviewState> {
+  const db = getDatabase();
+  // Load or create initial state
+  let state = (await db.reviewStates.get(wordId)) as ReviewState | undefined;
+  if (!state) {
+    state = {
+      id: wordId,
+      wordId,
+      nextReviewAt: now(),
+      interval: 0,
+      easeFactor: 2.5,
+      repetitions: 0,
+      history: [],
+    };
+  }
+  const updated = applySm2(state, grade as ReviewGrade);
+  await saveReviewState(updated);
+  return updated;
+}
 
 export async function seedDummyData(count = 5): Promise<void> {
   const samples = ['synthesis', 'ubiquitous', 'ephemeral', 'resilience', 'serendipity'];
