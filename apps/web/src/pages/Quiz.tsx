@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { fetchDueReviews, applySm2Review, getDatabase } from '@core';
+import { useContext } from 'preact/hooks';
+import { AuthContext } from '../auth/firebase';
 
 type WordEntry = any;
 
@@ -20,6 +22,7 @@ function useBootstrapFromSnapshot(): void {
 }
 
 export function QuizPage() {
+  const auth = useContext(AuthContext);
   useBootstrapFromSnapshot();
   const [words, setWords] = useState<WordEntry[]>([]);
   const [index, setIndex] = useState(0);
@@ -52,11 +55,24 @@ export function QuizPage() {
     next();
   };
 
+  if (!auth?.user) {
+    return (
+      <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
+        <h2>로그인이 필요합니다</h2>
+        <p>구글 계정으로 로그인 후 퀴즈를 진행하세요.</p>
+        <button onClick={() => auth?.signInWithGoogle()}>Google 로그인</button>
+      </div>
+    );
+  }
+
   if (!words.length) {
     return (
       <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
         <h2>퀴즈</h2>
         <p>단어장이 비어 있습니다. 스냅샷을 전달하거나, 확장에서 데이터를 가져오세요.</p>
+        <div style={{ marginTop: 8 }}>
+          <button onClick={() => auth?.signOut()}>로그아웃</button>
+        </div>
       </div>
     );
   }
@@ -68,7 +84,11 @@ export function QuizPage() {
           <strong>
             진행 {index + 1} / {words.length}
           </strong>
-          <button onClick={() => location.reload()}>새로고침</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 13 }}>{auth.user?.displayName}</span>
+            <button onClick={() => auth?.signOut()}>로그아웃</button>
+            <button onClick={() => location.reload()}>새로고침</button>
+          </div>
         </div>
         <div style={{ background: '#111827', color: '#e5e7eb', padding: 16, borderRadius: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 700 }}>{card?.word}</div>

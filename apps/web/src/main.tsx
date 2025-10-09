@@ -2,6 +2,7 @@
 import { Route, Router } from 'wouter-preact';
 import { useEffect } from 'preact/hooks';
 import { QuizPage } from './pages/Quiz';
+import { AuthContext, useProvideAuth } from './auth/firebase';
 
 function Home() {
   useEffect(() => {}, []);
@@ -15,11 +16,14 @@ function Home() {
 }
 
 function App() {
+  const auth = useProvideAuth();
   return (
-    <Router>
-      <Route path="/" component={Home} />
-      <Route path="/quiz" component={QuizPage} />
-    </Router>
+    <AuthContext.Provider value={auth}>
+      <Router>
+        <Route path="/" component={Home} />
+        <Route path="/quiz" component={QuizPage} />
+      </Router>
+    </AuthContext.Provider>
   );
 }
 

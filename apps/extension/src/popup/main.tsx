@@ -1,13 +1,21 @@
 ﻿/// <reference types="chrome" />
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { getDatabase } from '@core';
+import { getDatabase, exportSnapshot } from '@core';
 
 type WordEntry = any;
 
-function openQuiz(): void {
-  const url = chrome.runtime.getURL('src/quiz/index.html');
-  chrome.tabs?.create?.({ url });
+async function openQuiz(): Promise<void> {
+  try {
+    const snapshot = await exportSnapshot();
+    const payload = encodeURIComponent(JSON.stringify(snapshot));
+    const webBase = 'http://localhost:5173';
+    const url = `${webBase}/quiz#snapshot=${payload}`;
+    chrome.tabs?.create?.({ url });
+  } catch {
+    const webBase = 'http://localhost:5173';
+    chrome.tabs?.create?.({ url: `${webBase}/quiz` });
+  }
 }
 
 function downloadCsv(): void {
@@ -37,7 +45,8 @@ function App() {
   }, []);
 
   const copyLink = async () => {
-    const url = chrome.runtime.getURL('src/quiz/index.html');
+    const webBase = 'http://localhost:5173';
+    const url = `${webBase}/quiz`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
