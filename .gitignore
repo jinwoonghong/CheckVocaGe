@@ -1,0 +1,20 @@
+# Node/PNPM
+node_modules/
+pnpm-lock.yaml
+pnpm-debug.log*
+.pnpm-store/
+
+# Builds
+**/dist/
+coverage/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
