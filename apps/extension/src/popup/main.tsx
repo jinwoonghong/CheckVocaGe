@@ -5,15 +5,33 @@ import { getDatabase, exportSnapshot } from '@core';
 
 type WordEntry = any;
 
+function getStorage(): chrome.storage.StorageArea | undefined {
+  return chrome.storage?.sync ?? chrome.storage?.local;
+}
+
+async function getWebBaseUrl(): Promise<string> {
+  return new Promise((resolve) => {
+    try {
+      const storage = getStorage();
+      storage?.get({ webBaseUrl: '' }, (items) => {
+        const v = String(items?.webBaseUrl || '').trim();
+        resolve(v || 'http://localhost:5173');
+      });
+    } catch {
+      resolve('http://localhost:5173');
+    }
+  });
+}
+
 async function openQuiz(): Promise<void> {
   try {
     const snapshot = await exportSnapshot();
     const payload = encodeURIComponent(JSON.stringify(snapshot));
-    const webBase = 'http://localhost:5173';
+    const webBase = await getWebBaseUrl();
     const url = `${webBase}/quiz#snapshot=${payload}`;
     chrome.tabs?.create?.({ url });
   } catch {
-    const webBase = 'http://localhost:5173';
+    const webBase = await getWebBaseUrl();
     chrome.tabs?.create?.({ url: `${webBase}/quiz` });
   }
 }
@@ -45,15 +63,24 @@ function App() {
   }, []);
 
   const copyLink = async () => {
-    const webBase = 'http://localhost:5173';
+    const webBase = await getWebBaseUrl();
     const url = `${webBase}/quiz`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
       // ignore
     }
+  };  const copySnapshotLink = async () => {
+    try {
+      const snapshot = await exportSnapshot();
+      const payload = encodeURIComponent(JSON.stringify(snapshot));
+      const webBase = await getWebBaseUrl();
+      const url = `${webBase}/quiz#snapshot=${payload}`;
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // ignore
+    }
   };
-
   return (
     <div class="wrap">
       <h1>WebVoca</h1>
@@ -79,3 +106,4 @@ function App() {
 }
 
 render(<App />, document.getElementById('root')!);
+

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build --config vite.content.config.ts && vite build --config vite.background.config.ts && vite build --config vite.popup.config.ts && vite build --config vite.quiz.config.ts",
+    "build": "vite build --config vite.content.config.ts && vite build --config vite.background.config.ts && vite build --config vite.popup.config.ts && vite build --config vite.quiz.config.ts && vite build --config vite.options.config.ts",
     "lint": "eslint --ext .ts,.tsx src",
     "test": "vitest --run",
     "typecheck": "tsc --noEmit"

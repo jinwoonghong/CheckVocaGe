@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebVoca Options</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 16px; }
+      label { display: block; margin: 8px 0 4px; }
+      input { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #d1d5db; }
+      button { margin-top: 12px; border: 0; border-radius: 8px; padding: 10px 12px; background: #3745ff; color: #fff; cursor: pointer; }
+      .hint { color: #6b7280; font-size: 12px; }
+      .status { margin-top: 8px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>WebVoca Options</h1>
+    <p class="hint">모바일웹 퀴즈 기본 URL을 설정하세요(배포 후 호스팅 주소).</p>
+    <label for="webBase">Web Base URL</label>
+    <input id="webBase" placeholder="https://your-domain.example" />
+    <button id="save">저장</button>
+    <div id="status" class="status"></div>
+    <script type="module" src="/src/options/index.ts"></script>
+  </body>
+  </html>
+
