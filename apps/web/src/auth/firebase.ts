@@ -11,7 +11,7 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp | null = null;
-function getApp(): FirebaseApp {
+export function getApp(): FirebaseApp {
   if (!app) app = initializeApp(firebaseConfig as any);
   return app!;
 }
@@ -46,4 +46,3 @@ export function useProvideAuth(): AuthContextValue {
 
   return value;
 }
-

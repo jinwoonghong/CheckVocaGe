@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { fetchDueReviews, applySm2Review, getDatabase } from '@core';
+import { fetchDueReviews, applySm2Review, getDatabase, exportSnapshot } from '@core';
 import { useContext } from 'preact/hooks';
 import { AuthContext } from '../auth/firebase';
+import { fetchUserWords, upsertSnapshotToFirestore, upsertReviewState } from '../db/firestore';
 
 type WordEntry = any;
 
@@ -30,6 +31,14 @@ export function QuizPage() {
 
   useEffect(() => {
     (async () => {
+      // If logged in, prefer cloud words
+      if (auth?.user) {
+        const cloudWords = await fetchUserWords(auth.user.uid, 100);
+        if (cloudWords.length) {
+          setWords(cloudWords);
+          return;
+        }
+      }
       const due = await fetchDueReviews();
       if (due.length) setWords(due);
       else {
@@ -38,7 +47,7 @@ export function QuizPage() {
         setWords(recent);
       }
     })();
-  }, []);
+  }, [auth?.user?.uid]);
 
   const card = useMemo(() => words[index], [words, index]);
   const next = () => {
@@ -48,7 +57,10 @@ export function QuizPage() {
 
   const grade = async (g: 2 | 4 | 5) => {
     try {
-      if (card?.id) await applySm2Review(card.id, g);
+      if (card?.id) {
+        const updated = await applySm2Review(card.id, g);
+        if (auth?.user) await upsertReviewState(auth.user.uid, updated);
+      }
     } catch {
       // ignore
     }
@@ -77,6 +89,17 @@ export function QuizPage() {
     );
   }
 
+  const syncToCloud = async () => {
+    if (!auth?.user) return;
+    try {
+      const snapshot = await exportSnapshot();
+      await upsertSnapshotToFirestore(auth.user.uid, snapshot);
+      alert('클라우드 동기화 완료');
+    } catch {
+      alert('동기화 실패');
+    }
+  };
+
   return (
     <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
       <div style={{ maxWidth: 480, margin: '0 auto' }}>
@@ -88,6 +111,7 @@ export function QuizPage() {
             <span style={{ fontSize: 13 }}>{auth.user?.displayName}</span>
             <button onClick={() => auth?.signOut()}>로그아웃</button>
             <button onClick={() => location.reload()}>새로고침</button>
+            <button onClick={syncToCloud}>클라우드 동기화</button>
           </div>
         </div>
         <div style={{ background: '#111827', color: '#e5e7eb', padding: 16, borderRadius: 12 }}>
