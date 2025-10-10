@@ -1,0 +1,12 @@
+{
+  "name": "checkvocage-functions",
+  "private": true,
+  "engines": { "node": "18" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.5.0",
+    "firebase-functions": "^4.5.0",
+    "node-fetch": "^3.3.2"
+  }
+}
+

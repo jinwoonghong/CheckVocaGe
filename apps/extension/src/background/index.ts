@@ -1,6 +1,6 @@
-/// <reference types="chrome" />
+﻿/// <reference types="chrome" />
 import type { SelectionPayload } from '@core';
-import { registerSelection } from '@core';
+import { registerSelection, getDatabase } from '@core';
 
 interface LookupResult {
   definitions: string[];
@@ -243,3 +243,4 @@ async function exportCsvAndDownload(): Promise<void> {
     // The browser will revoke when the worker is terminated; keep explicit cleanup later if needed.
   }
 }
+

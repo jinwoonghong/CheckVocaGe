@@ -21,4 +21,8 @@ export interface SelectionPayload {
   isFavorite?: boolean;
   tags?: string[];
   note?: string;
+  // Optional enrichments from dictionary lookup
+  definitions?: string[];
+  phonetic?: string;
+  audioUrl?: string;
 }

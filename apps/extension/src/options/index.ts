@@ -1,4 +1,4 @@
-/// <reference types="chrome" />
+﻿/// <reference types="chrome" />
 
 const input = document.getElementById('webBase') as HTMLInputElement;
 const saveBtn = document.getElementById('save') as HTMLButtonElement;
@@ -30,7 +30,9 @@ async function load() {
     storage.get({ webBaseUrl: '' }, (items) => {
       input.value = items.webBaseUrl ?? '';
     });
-  } catch {}
+  } catch {
+    setStatus('불러오기 실패', false);
+  }
 }
 
 async function save() {
@@ -46,4 +48,3 @@ async function save() {
 
 saveBtn.addEventListener('click', save);
 void load();
-

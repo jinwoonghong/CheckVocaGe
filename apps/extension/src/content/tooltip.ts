@@ -2,15 +2,12 @@
 import {
   subscribe,
   SelectionUiState,
-  setSaving,
-  setSuccess,
-  setError,
-  resetState,
+    resetState,
   updatePayload,
 } from './state';
 
 interface TooltipCallbacks {
-  onSave: (payload: SelectionPayload) => Promise<void>;
+  onSave?: (payload: SelectionPayload) => Promise<void>;
   onFavoriteToggle?: (payload: SelectionPayload) => void;
 }
 
@@ -21,7 +18,7 @@ export class SelectionTooltip {
   private wordContainerEl: HTMLDivElement;
   private definitionEl: HTMLDivElement;
   private contextEl: HTMLDivElement;
-  private saveButton: HTMLButtonElement;
+  // save button removed for auto-save flow
   private cancelButton: HTMLButtonElement;
   private favoriteButton: HTMLButtonElement;
   private closeButton: HTMLButtonElement;
@@ -206,13 +203,7 @@ export class SelectionTooltip {
       resetState();
     });
 
-    this.saveButton = document.createElement('button');
-    this.saveButton.type = 'button';
-    this.saveButton.className = 'save';
-    this.saveButton.textContent = 'Save';
-    this.saveButton.addEventListener('click', () => this.handleSave());
-
-    actions.append(this.favoriteButton, this.cancelButton, this.saveButton);
+    actions.append(this.favoriteButton, this.cancelButton);
 
     this.messageEl = document.createElement('p');
     this.messageEl.className = 'status';
@@ -243,18 +234,7 @@ export class SelectionTooltip {
     return this.shadow.querySelector('.word-text') as HTMLDivElement;
   }
 
-  private async handleSave(): Promise<void> {
-    const state = this.currentState;
-    if (!state?.payload || state.status === 'saving') return;
-    setSaving();
-    try {
-      await this.callbacks.onSave(state.payload);
-      setSuccess();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save word.';
-      setError(message);
-    }
-  }
+  // save removed (auto-save now)
 
   private handleFavorite(): void {
     const state = this.currentState;
@@ -319,7 +299,7 @@ export class SelectionTooltip {
     this.contextEl.textContent = ctx.length > maxLen ? ctx.slice(0, maxLen - 1) + '…' : ctx;
     this.setPosition(state.position);
 
-    this.saveButton.disabled = state.status === 'saving';
+    // save button removed
     this.messageEl.textContent = state.message ?? state.error ?? '';
     this.favoriteButton.setAttribute('aria-pressed', state.payload.isFavorite ? 'true' : 'false');
     this.favoriteButton.textContent = state.payload.isFavorite ? 'On' : 'Off';
@@ -338,3 +318,4 @@ export class SelectionTooltip {
     }
   }
 }
+

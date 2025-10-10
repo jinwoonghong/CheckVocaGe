@@ -37,6 +37,9 @@ function mergeWord(existing: WordEntry, payload: SelectionPayload): WordEntry {
     isFavorite: payload.isFavorite ?? existing.isFavorite,
     note: payload.note ?? existing.note,
     manuallyEdited: existing.manuallyEdited,
+    definitions: payload.definitions ?? existing.definitions,
+    phonetic: payload.phonetic ?? existing.phonetic,
+    audioUrl: payload.audioUrl ?? existing.audioUrl,
   };
 }
 
@@ -63,6 +66,9 @@ export async function upsertWordWithContext(payload: SelectionPayload): Promise<
         isFavorite: payload.isFavorite ?? false,
         manuallyEdited: false,
         note: payload.note,
+        definitions: payload.definitions ?? [],
+        phonetic: payload.phonetic,
+        audioUrl: payload.audioUrl,
       };
   await db.wordEntries.put(base);
   return base;

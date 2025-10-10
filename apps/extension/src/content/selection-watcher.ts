@@ -68,6 +68,7 @@ export interface DefinitionResult {
 export function attachSelectionWatcher(
   callback: (payload: SelectionPayload, metadata: { rect: DOMRect | null }) => void,
   lookupDefinition: (word: string) => Promise<DefinitionResult>,
+  onResult?: (payload: SelectionPayload, result: DefinitionResult) => void,
 ): void {
   const handler = () => {
     const selection = window.getSelection();
@@ -89,6 +90,7 @@ export function attachSelectionWatcher(
         }
         setPhonetic(result.phonetic);
         setAudioUrl(result.audioUrl);
+        onResult?.(payload, result);
       })
       .catch(() => {
         setDefinitionError('Failed to load definition.');

@@ -1,4 +1,4 @@
-import { getApp } from '../auth/firebase';
+﻿import { getApp } from '../auth/firebase';
 import {
   getFirestore,
   collection,
@@ -49,4 +49,5 @@ export async function upsertReviewState(uid: string, state: any): Promise<void> 
   const ref = doc(reviewsCol(uid), state.id);
   await setDoc(ref, state, { merge: true });
 }
+
 

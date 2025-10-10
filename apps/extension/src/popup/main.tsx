@@ -1,12 +1,22 @@
 ﻿/// <reference types="chrome" />
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { getDatabase, exportSnapshot } from '@core';
+import { getDatabase, exportSnapshot, subscribeCacheEvent } from '@core';
+const ENV_BASE = (import.meta as any).env?.VITE_WEB_BASE as string | undefined;
 
-type WordEntry = any;
+type WordEntry = { id: string; word: string; context?: string };
 
 function getStorage(): chrome.storage.StorageArea | undefined {
   return chrome.storage?.sync ?? chrome.storage?.local;
+}
+
+function isEnglishWord(s: string | undefined | null): boolean {
+  if (!s) return false;
+  const word = String(s).trim();
+  // Only ASCII letters with optional internal hyphen or apostrophe. No digits or non-latin.
+  // e.g., don't, mother-in-law are allowed; min 1 char, max 50 to be safe.
+  if (word.length === 0 || word.length > 50) return false;
+  return /^[A-Za-z](?:[A-Za-z'\-]*[A-Za-z])?$/.test(word);
 }
 
 async function getWebBaseUrl(): Promise<string> {
@@ -15,25 +25,16 @@ async function getWebBaseUrl(): Promise<string> {
       const storage = getStorage();
       storage?.get({ webBaseUrl: '' }, (items) => {
         const v = String(items?.webBaseUrl || '').trim();
-        resolve(v || 'http://localhost:5173');
+        resolve(v || ENV_BASE || 'http://localhost:5173');
       });
     } catch {
-      resolve('http://localhost:5173');
+      resolve(ENV_BASE || 'http://localhost:5173');
     }
   });
 }
 
 async function openQuiz(): Promise<void> {
-  try {
-    const snapshot = await exportSnapshot();
-    const payload = encodeURIComponent(JSON.stringify(snapshot));
-    const webBase = await getWebBaseUrl();
-    const url = `${webBase}/quiz#snapshot=${payload}`;
-    chrome.tabs?.create?.({ url });
-  } catch {
-    const webBase = await getWebBaseUrl();
-    chrome.tabs?.create?.({ url: `${webBase}/quiz` });
-  }
+  await sendSnapshotToWeb();
 }
 
 function downloadCsv(): void {
@@ -48,56 +49,86 @@ function downloadCsv(): void {
   });
 }
 
+async function copyLink(): Promise<void> {
+  const webBase = await getWebBaseUrl();
+  const url = `${webBase}/quiz`;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {}
+}
+
+async function sendSnapshotToWeb(): Promise<void> {
+  try {
+    const snapshot = await exportSnapshot();
+    const key = `CHECKVOCA_SNAPSHOT_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await new Promise<void>((resolve) => {
+      try {
+        chrome.storage?.local?.set({ [key]: snapshot }, () => resolve());
+      } catch {
+        resolve();
+      }
+    });
+    const webBase = await getWebBaseUrl();
+    const url = `${webBase}/quiz?snapshotKey=${encodeURIComponent(key)}`;
+    chrome.tabs?.create?.({ url });
+  } catch {}
+}
+
+async function openLogin(): Promise<void> {
+  const webBase = await getWebBaseUrl();
+  chrome.tabs?.create?.({ url: `${webBase}/quiz` });
+}
+
+async function openLogout(): Promise<void> {
+  const webBase = await getWebBaseUrl();
+  chrome.tabs?.create?.({ url: `${webBase}/quiz?logout=1` });
+}
+
 function App() {
   const [words, setWords] = useState<WordEntry[]>([]);
 
   useEffect(() => {
-    const db = getDatabase();
-    db.wordEntries
-      .orderBy('createdAt')
-      .reverse()
-      .limit(20)
-      .toArray()
-      .then((arr) => setWords(arr as WordEntry[]))
-      .catch(() => setWords([]));
+    const loadRecent = async () => {
+      try {
+        const db = getDatabase();
+        // 가져온 뒤 updatedAt 기준으로 정렬해 상위 20개만 표시
+        const rows = (await db.wordEntries.orderBy('createdAt').reverse().limit(300).toArray()) as any[];
+        rows.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+        const filtered = rows.filter((r) => isEnglishWord(r?.word));
+        setWords(filtered.slice(0, 20) as WordEntry[]);
+      } catch {
+        setWords([]);
+      }
+    };
+    loadRecent();
+    const off = subscribeCacheEvent((ev) => {
+      if (ev.type === 'word:updated' || ev.type === 'word:created' || ev.type === 'word:deleted') {
+        loadRecent();
+      }
+    });
+    return () => off();
   }, []);
 
-  const copyLink = async () => {
-    const webBase = await getWebBaseUrl();
-    const url = `${webBase}/quiz`;
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      // ignore
-    }
-  };  const copySnapshotLink = async () => {
-    try {
-      const snapshot = await exportSnapshot();
-      const payload = encodeURIComponent(JSON.stringify(snapshot));
-      const webBase = await getWebBaseUrl();
-      const url = `${webBase}/quiz#snapshot=${payload}`;
-      await navigator.clipboard.writeText(url);
-    } catch {
-      // ignore
-    }
-  };
   return (
     <div class="wrap">
       <h1>WebVoca</h1>
+      <div class="auth" style="display:flex; gap:8px; margin: 6px 0 10px;">
+        <button class="secondary" onClick={openLogin}>로그인(모바일웹)</button>
+        <button class="secondary" onClick={openLogout}>로그아웃(모바일웹)</button>
+      </div>
       <div style="margin-bottom:10px;">
         <small>최근 조회 단어</small>
-        <ul style="max-height:180px;overflow:auto;margin:6px 0;padding-left:16px;">
+        <ul style="maxHeight:180px;overflow:auto;margin:6px 0;padding-left:16px;">
           {words.length === 0 && <li>표시할 단어가 없습니다.</li>}
           {words.map((w) => (
-            <li key={w.id} title={w.context}>
-              {w.word}
-            </li>
+            <li key={w.id} title={w.context}>{w.word}</li>
           ))}
         </ul>
       </div>
-      <div class="actions">
+      <div class="actions" style="display:grid;gap:8px;">
         <button onClick={openQuiz}>퀴즈 시작(모바일웹)</button>
         <button class="secondary" onClick={copyLink}>퀴즈 링크 복사</button>
+        <button class="secondary" onClick={sendSnapshotToWeb}>모바일로 보내기(스냅샷)</button>
         <button class="secondary" onClick={downloadCsv}>CSV 다운로드</button>
         <small>단어장(IndexedDB) 기반 기능</small>
       </div>
@@ -106,4 +137,5 @@ function App() {
 }
 
 render(<App />, document.getElementById('root')!);
+
 

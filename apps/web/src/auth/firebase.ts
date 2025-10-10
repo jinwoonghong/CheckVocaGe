@@ -1,5 +1,5 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { createContext } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 
@@ -36,7 +36,17 @@ export function useProvideAuth(): AuthContextValue {
     async signInWithGoogle() {
       const auth = getAuth(getApp());
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (err: any) {
+        const code = err?.code || err?.message || '';
+        // Fallback when popup is blocked or not allowed on this browser
+        if (String(code).includes('popup') || String(code).includes('operation-not-supported')) {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw err;
+      }
     },
     async signOut() {
       const auth = getAuth(getApp());

@@ -1,24 +1,83 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
-import { fetchDueReviews, applySm2Review, getDatabase, exportSnapshot } from '@core';
-import { useContext } from 'preact/hooks';
-import { AuthContext } from '../auth/firebase';
-import { fetchUserWords, upsertSnapshotToFirestore, upsertReviewState } from '../db/firestore';
+﻿import { useEffect, useMemo, useState, useContext, useRef } from "preact/hooks";
+import { fetchDueReviews, applySm2Review, getDatabase, exportSnapshot } from "@core";
+import { AuthContext } from "../auth/firebase";
+import { fetchUserWords, upsertSnapshotToFirestore, upsertReviewState } from "../db/firestore";
 
-type WordEntry = any;
+type WordEntry = {
+  id: string;
+  word: string;
+  context?: string;
+  definitions?: string[];
+  phonetic?: string;
+  audioUrl?: string;
+};
+
+const isKorean = (s: string) => /[\uAC00-\uD7A3]/.test(s);
+
+async function fetchFromKoDict(word: string): Promise<{ definitions: string[]; phonetic?: string; audioUrl?: string } | null> {
+  try {
+    const res = await fetch(`/api/ko-dict?word=${encodeURIComponent(word)}`, { credentials: 'omit' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !Array.isArray(data.definitions)) return null;
+    return { definitions: data.definitions, phonetic: data.phonetic };
+  } catch { return null; }
+}
+
+async function fetchFromDictionaryApi(
+  word: string
+): Promise<{ definitions: string[]; phonetic?: string; audioUrl?: string } | null> {
+  try {
+    const res = await fetch(
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
+    );
+    if (!res.ok) return null;
+    const arr = (await res.json()) as any[];
+    if (!Array.isArray(arr) || !arr[0]) return null;
+    const entry = arr[0];
+    const phonetic: string | undefined = entry.phonetics?.find((p: any) => p?.text)?.text || entry.phonetic;
+    const audioUrl: string | undefined = entry.phonetics?.find((p: any) => p?.audio)?.audio;
+    const defs: string[] = [];
+    for (const m of entry.meanings ?? []) {
+      for (const d of m.definitions ?? []) {
+        if (d?.definition) defs.push(String(d.definition));
+      }
+    }
+    return { definitions: defs, phonetic, audioUrl };
+  } catch {
+    return null;
+  }
+}
 
 function useBootstrapFromSnapshot(): void {
   useEffect(() => {
-    const hash = typeof location !== 'undefined' ? location.hash : '';
+    const hash = typeof location !== "undefined" ? location.hash : "";
     const m = hash.match(/snapshot=([^&]+)/);
-    if (!m) return;
-    try {
-      const json = decodeURIComponent(m[1]);
-      const data = JSON.parse(json);
-      // dynamic import to avoid ESM circulars
-      import('@core').then(({ importSnapshot }) => importSnapshot(data)).catch(() => void 0);
-    } catch {
-      // ignore parse errors
+    if (m) {
+      try {
+        const json = decodeURIComponent(m[1]);
+        const data = JSON.parse(json);
+        import("@core")
+          .then(({ importSnapshot }) => importSnapshot(data))
+          .then(() => window.dispatchEvent(new CustomEvent('checkvoca:snapshot-imported')))
+          .catch(() => void 0);
+      } catch { /* ignore */ }
     }
+
+    // Also support extension handoff via postMessage
+    function onMessage(ev: MessageEvent) {
+      try {
+        if (ev.source !== window) return;
+        const d: any = ev.data;
+        if (!d || d.type !== 'CHECKVOCA_SNAPSHOT' || !d.payload) return;
+        import("@core")
+          .then(({ importSnapshot }) => importSnapshot(d.payload))
+          .then(() => window.dispatchEvent(new CustomEvent('checkvoca:snapshot-imported')))
+          .catch(() => void 0);
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, []);
 }
 
@@ -27,31 +86,119 @@ export function QuizPage() {
   useBootstrapFromSnapshot();
   const [words, setWords] = useState<WordEntry[]>([]);
   const [index, setIndex] = useState(0);
-  const [showContext, setShowContext] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  const didSyncRef = useRef(false);
 
+  function showToast(message: string, durationMs = 2200) {
+    setToast(message);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), durationMs);
+  }
+
+  // Support sign-out via query param (?logout=1) for extension quick action
+  useEffect(() => {
+    try {
+      const q = typeof location !== 'undefined' ? location.search : '';
+      if (q && new URLSearchParams(q).get('logout') === '1') {
+        auth?.signOut?.().finally(() => {
+          const clean = location.pathname + (location.hash || '');
+          history.replaceState({}, '', clean);
+        });
+      }
+    } catch {}
+  }, [auth?.user]);
+
+  // Load words with merge: local(due->recent) + cloud(unique)
   useEffect(() => {
     (async () => {
-      // If logged in, prefer cloud words
-      if (auth?.user) {
-        const cloudWords = await fetchUserWords(auth.user.uid, 100);
-        if (cloudWords.length) {
-          setWords(cloudWords);
-          return;
-        }
-      }
-      const due = await fetchDueReviews();
-      if (due.length) setWords(due);
-      else {
+      const due = (await fetchDueReviews()) as WordEntry[];
+      let local = due;
+      if (!local.length) {
         const db = getDatabase();
-        const recent = (await db.wordEntries.orderBy('createdAt').reverse().limit(20).toArray()) as WordEntry[];
-        setWords(recent);
+        local = (await db.wordEntries.orderBy("createdAt").reverse().limit(50).toArray()) as WordEntry[];
       }
+      let merged = local;
+      if (auth?.user) {
+        try {
+          const cloudWords = (await fetchUserWords(auth.user.uid, 200)) as WordEntry[];
+          const seen = new Set(local.map((w) => w.id));
+          const append = cloudWords.filter((w) => !seen.has(w.id));
+          merged = [...local, ...append];
+        } catch {}
+      }
+      setWords(merged);
     })();
   }, [auth?.user?.uid]);
 
+  // Reload list after snapshot import
+  useEffect(() => {
+    const handler = () => {
+      (async () => {
+        const due = (await fetchDueReviews()) as WordEntry[];
+        let local = due;
+        if (!local.length) {
+          const db = getDatabase();
+          local = (await db.wordEntries.orderBy("createdAt").reverse().limit(50).toArray()) as WordEntry[];
+        }
+        let merged = local;
+        if (auth?.user) {
+          try {
+            const cloudWords = (await fetchUserWords(auth.user.uid, 200)) as WordEntry[];
+            const seen = new Set(local.map((w) => w.id));
+            const append = cloudWords.filter((w) => !seen.has(w.id));
+            merged = [...local, ...append];
+          } catch {}
+        }
+        setWords(merged);
+      })();
+    };
+      showToast("단어장을 가져와 동기화했어요");
+    window.addEventListener('checkvoca:snapshot-imported', handler);
+    return () => window.removeEventListener('checkvoca:snapshot-imported', handler);
+  }, [auth?.user?.uid]);
+
+  // Auto cloud sync once after login (best-effort)
+  useEffect(() => {
+    (async () => {
+      if (!auth?.user || didSyncRef.current) return;
+      try {
+        didSyncRef.current = true;
+        const snapshot = await exportSnapshot();
+        await upsertSnapshotToFirestore(auth.user.uid, snapshot);
+        showToast("Cloud sync completed");
+      } catch {
+        showToast("Cloud sync failed", 2600);
+      }
+    })();
+  }, [auth?.user?.uid]);
+  // Best-effort enrichment for items without definitions
+  useEffect(() => {
+    (async () => {
+      const need = words.filter((w) => !w.definitions || w.definitions.length === 0).slice(0, 10);
+      if (!need.length) return;
+      const updates: Record<string, Partial<WordEntry>> = {};
+      await Promise.all(
+        need.map(async (w) => {
+          const r = (await fetchFromKoDict(w.word)) || (await fetchFromDictionaryApi(w.word));
+          if (r && r.definitions.length) {
+            const kr = r.definitions.filter((d) => isKorean(String(d)));
+            if (kr.length) {
+              updates[w.id] = { definitions: kr, phonetic: r.phonetic, audioUrl: r.audioUrl };
+            }
+          }
+        })
+      );
+      if (Object.keys(updates).length) {
+        setWords((prev) => prev.map((w) => ({ ...w, ...(updates[w.id] || {}) })));
+      }
+    })();
+  }, [words]);
+
   const card = useMemo(() => words[index], [words, index]);
   const next = () => {
-    setShowContext(false);
+    setShowAnswer(false);
     setIndex((i) => (words.length ? (i + 1) % words.length : 0));
   };
 
@@ -59,18 +206,16 @@ export function QuizPage() {
     try {
       if (card?.id) {
         const updated = await applySm2Review(card.id, g);
-        if (auth?.user) await upsertReviewState(auth.user.uid, updated);
+        if (auth?.user) await upsertReviewState(auth.user.uid, updated as any);
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
     next();
   };
 
   if (!auth?.user) {
     return (
-      <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
-        <h2>로그인이 필요합니다</h2>
+      <div style={{ padding: 16, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+        <h2>로그인 필요</h2>
         <p>구글 계정으로 로그인 후 퀴즈를 진행하세요.</p>
         <button onClick={() => auth?.signInWithGoogle()}>Google 로그인</button>
       </div>
@@ -79,7 +224,7 @@ export function QuizPage() {
 
   if (!words.length) {
     return (
-      <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
+      <div style={{ padding: 16, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
         <h2>퀴즈</h2>
         <p>단어장이 비어 있습니다. 스냅샷을 전달하거나, 확장에서 데이터를 가져오세요.</p>
         <div style={{ marginTop: 8 }}>
@@ -94,31 +239,85 @@ export function QuizPage() {
     try {
       const snapshot = await exportSnapshot();
       await upsertSnapshotToFirestore(auth.user.uid, snapshot);
-      alert('클라우드 동기화 완료');
+      alert("클라우드 동기화 완료");
     } catch {
-      alert('동기화 실패');
+      alert("동기화 실패");
     }
   };
 
+  const defs = (card?.definitions || []).filter((d) => isKorean(String(d)));
+  const answer = defs.length ? (
+    <ul style={{ paddingLeft: 16, margin: "6px 0" }}>
+      {defs.map((d, i) => (
+        <li key={i}>{d}</li>
+      ))}
+    </ul>
+  ) : (
+    card?.context || "정의가 없어 문맥을 표시합니다."
+  );
+
   return (
-    <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
-      <div style={{ maxWidth: 480, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+    <div style={{ padding: 16, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+        {toast && (
+          <div
+            style={{
+              position: "fixed",
+              top: 12,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "rgba(17,24,39,0.95)",
+              color: "#e5e7eb",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 8,
+              padding: "8px 12px",
+              zIndex: 1000,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+              fontSize: 13,
+            }}
+          >
+            {toast}
+          </div>
+        )}
           <strong>
             진행 {index + 1} / {words.length}
           </strong>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 13 }}>{auth.user?.displayName}</span>
             <button onClick={() => auth?.signOut()}>로그아웃</button>
             <button onClick={() => location.reload()}>새로고침</button>
             <button onClick={syncToCloud}>클라우드 동기화</button>
           </div>
         </div>
-        <div style={{ background: '#111827', color: '#e5e7eb', padding: 16, borderRadius: 12 }}>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{card?.word}</div>
-          <div style={{ color: '#9ca3af', margin: '8px 0 12px' }}>{showContext ? card?.context : '정답 보기 눌러 확인'}</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setShowContext((v) => !v)}>{showContext ? '숨기기' : '정답 보기'}</button>
+        <div style={{ background: "#111827", color: "#e5e7eb", padding: 16, borderRadius: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{card?.word}</div>
+            {showAnswer && card?.phonetic && (
+              <div style={{ color: "#9ca3af" }}>/ {card.phonetic} /</div>
+            )}
+            {showAnswer && (
+              <button
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "transparent",
+                  color: "#e5e7eb",
+                }}
+                disabled={!card?.audioUrl}
+                onClick={() => {
+                  if (card?.audioUrl) new Audio(card.audioUrl).play().catch(() => {});
+                }}
+                aria-label="발음 재생"
+              >
+                Play
+              </button>
+            )}
+          </div>
+          <div style={{ color: "#9ca3af", margin: "8px 0 12px" }}>{showAnswer ? answer : "정답 보기 눌러 확인"}</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setShowAnswer((v) => !v)}>{showAnswer ? "숨기기" : "정답 보기"}</button>
             <button onClick={() => grade(2)}>Again</button>
             <button onClick={() => grade(4)}>Good</button>
             <button onClick={() => grade(5)}>Easy</button>
@@ -128,3 +327,9 @@ export function QuizPage() {
     </div>
   );
 }
+
+
+
+
+
+

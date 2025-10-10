@@ -22,6 +22,9 @@ export interface WordEntry {
   isFavorite: boolean;
   manuallyEdited: boolean;
   note?: string;
+  definitions?: string[];
+  phonetic?: string;
+  audioUrl?: string;
 }
 
 export interface ReviewHistoryItem {
