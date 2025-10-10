@@ -1,7 +1,8 @@
-﻿/// <reference types="chrome" />
+/// <reference types="chrome" />
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { getDatabase, exportSnapshot, subscribeCacheEvent } from '@core';
+
 const ENV_BASE = (import.meta as any).env?.VITE_WEB_BASE as string | undefined;
 
 type WordEntry = { id: string; word: string; context?: string };
@@ -13,8 +14,6 @@ function getStorage(): chrome.storage.StorageArea | undefined {
 function isEnglishWord(s: string | undefined | null): boolean {
   if (!s) return false;
   const word = String(s).trim();
-  // Only ASCII letters with optional internal hyphen or apostrophe. No digits or non-latin.
-  // e.g., don't, mother-in-law are allowed; min 1 char, max 50 to be safe.
   if (word.length === 0 || word.length > 50) return false;
   return /^[A-Za-z](?:[A-Za-z'\-]*[A-Za-z])?$/.test(word);
 }
@@ -34,7 +33,8 @@ async function getWebBaseUrl(): Promise<string> {
 }
 
 async function openQuiz(): Promise<void> {
-  await sendSnapshotToWeb();
+  const webBase = await getWebBaseUrl();
+  chrome.tabs?.create?.({ url: `${webBase}/quiz?action=open` });
 }
 
 function downloadCsv(): void {
@@ -51,10 +51,7 @@ function downloadCsv(): void {
 
 async function copyLink(): Promise<void> {
   const webBase = await getWebBaseUrl();
-  const url = `${webBase}/quiz`;
-  try {
-    await navigator.clipboard.writeText(url);
-  } catch {}
+  chrome.tabs?.create?.({ url: `${webBase}/quiz?action=copyLink` });
 }
 
 async function sendSnapshotToWeb(): Promise<void> {
@@ -69,7 +66,7 @@ async function sendSnapshotToWeb(): Promise<void> {
       }
     });
     const webBase = await getWebBaseUrl();
-    const url = `${webBase}/quiz?snapshotKey=${encodeURIComponent(key)}`;
+    const url = `${webBase}/quiz?action=importSnapshot&snapshotKey=${encodeURIComponent(key)}`;
     chrome.tabs?.create?.({ url });
   } catch {}
 }
@@ -86,12 +83,12 @@ async function openLogout(): Promise<void> {
 
 function App() {
   const [words, setWords] = useState<WordEntry[]>([]);
+  const [adLeft, setAdLeft] = useState<number>(0);
 
   useEffect(() => {
     const loadRecent = async () => {
       try {
         const db = getDatabase();
-        // 가져온 뒤 updatedAt 기준으로 정렬해 상위 20개만 표시
         const rows = (await db.wordEntries.orderBy('createdAt').reverse().limit(300).toArray()) as any[];
         rows.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
         const filtered = rows.filter((r) => isEnglishWord(r?.word));
@@ -129,13 +126,34 @@ function App() {
         <button onClick={openQuiz}>퀴즈 시작(모바일웹)</button>
         <button class="secondary" onClick={copyLink}>퀴즈 링크 복사</button>
         <button class="secondary" onClick={sendSnapshotToWeb}>모바일로 보내기(스냅샷)</button>
-        <button class="secondary" onClick={downloadCsv}>CSV 다운로드</button>
+        <button class="secondary" onClick={() => {
+          if (adLeft > 0) return;
+          setAdLeft(5);
+          const id = setInterval(() => {
+            setAdLeft((n) => {
+              if (n <= 1) {
+                clearInterval(id);
+                setTimeout(() => downloadCsv(), 100);
+                return 0;
+              }
+              return n - 1;
+            });
+            return undefined as any;
+          }, 1000);
+        }}>CSV 다운로드</button>
         <small>단어장(IndexedDB) 기반 기능</small>
+        {adLeft > 0 && (
+          <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);">
+            <div style="background:#111827;color:#e5e7eb;padding:16px 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);text-align:center;">
+              <div style="margin-bottom:8px;font-weight:600;">광고 시청 중...</div>
+              <div style="font-size:13px;">{adLeft}초 후 다운로드 시작</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 render(<App />, document.getElementById('root')!);
-
 
