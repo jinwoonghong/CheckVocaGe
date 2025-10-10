@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState, useContext, useRef } from "preact/hooks";
+            <a href='/words'><button>단어장 관리</button></a>
 import { fetchDueReviews, applySm2Review, getDatabase, exportSnapshot } from "@core";
 import { AuthContext } from "../auth/firebase";
 import { fetchUserWords, upsertSnapshotToFirestore, upsertReviewState } from "../db/firestore";
@@ -14,9 +15,12 @@ type WordEntry = {
 
 const isKorean = (s: string) => /[\uAC00-\uD7A3]/.test(s);
 
+const ENABLE_KO_DICT = (import.meta as any).env?.VITE_ENABLE_KO_DICT !== "0";
+
 async function fetchFromKoDict(word: string): Promise<{ definitions: string[]; phonetic?: string; audioUrl?: string } | null> {
+  if (!ENABLE_KO_DICT) return null;
   try {
-    const res = await fetch(`/api/ko-dict?word=${encodeURIComponent(word)}`, { credentials: 'omit' });
+    const res = await fetch(`/api/ko-dict?word=${encodeURIComponent(word)}`, { credentials: "omit" });
     if (!res.ok) return null;
     const data = await res.json();
     if (!data || !Array.isArray(data.definitions)) return null;
@@ -51,16 +55,15 @@ async function fetchFromDictionaryApi(
 
 function useBootstrapFromSnapshot(): void {
   useEffect(() => {
+    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
     const hash = typeof location !== "undefined" ? location.hash : "";
     const m = hash.match(/snapshot=([^&]+)/);
     if (m) {
       try {
         const json = decodeURIComponent(m[1]);
         const data = JSON.parse(json);
-        import("@core")
-          .then(({ importSnapshot }) => importSnapshot(data))
-          .then(() => window.dispatchEvent(new CustomEvent('checkvoca:snapshot-imported')))
-          .catch(() => void 0);
+        storePending(data);
       } catch { /* ignore */ }
     }
 
@@ -70,10 +73,7 @@ function useBootstrapFromSnapshot(): void {
         if (ev.source !== window) return;
         const d: any = ev.data;
         if (!d || d.type !== 'CHECKVOCA_SNAPSHOT' || !d.payload) return;
-        import("@core")
-          .then(({ importSnapshot }) => importSnapshot(d.payload))
-          .then(() => window.dispatchEvent(new CustomEvent('checkvoca:snapshot-imported')))
-          .catch(() => void 0);
+        storePending(d.payload);
       } catch { /* ignore */ }
     }
     window.addEventListener('message', onMessage);
@@ -99,6 +99,8 @@ export function QuizPage() {
 
   // Support sign-out via query param (?logout=1) for extension quick action
   useEffect(() => {
+    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
     try {
       const q = typeof location !== 'undefined' ? location.search : '';
       if (q && new URLSearchParams(q).get('logout') === '1') {
@@ -110,8 +112,63 @@ export function QuizPage() {
     } catch {}
   }, [auth?.user]);
 
+  // Handle action from extension: login gate → sync → action
+  useEffect(() => {
+    (async () => {
+      const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+      const q = typeof location !== 'undefined' ? location.search : '';
+      const params = new URLSearchParams(q);
+      const action = params.get('action');
+      if (!action) return;
+
+      if (auth?.user === undefined) {
+        // Auth state still loading; wait for next run
+        return;
+      }
+      if (auth?.user === null) {
+        try {
+          await auth?.signInWithGoogle?.();
+        } catch {
+          // user canceled
+        }
+        return; // re-run on auth change
+      }
+
+      // Pre-sync local → cloud (best-effort)
+      try {
+        const snapshot = await exportSnapshot();
+        await upsertSnapshotToFirestore(auth.user.uid, snapshot);
+      } catch {}
+
+      if (action === 'copyLink') {
+        try {
+          await navigator.clipboard.writeText(`${location.origin}/quiz`);
+          showToast('퀴즈 링크를 복사했어요');
+        } catch {}
+      } else if (action === 'importSnapshot') {
+        try {
+          const raw = localStorage.getItem(PENDING_KEY);
+          if (raw) {
+            const data = JSON.parse(raw);
+            const mod = await import('@core');
+            await mod.importSnapshot(data);
+            localStorage.removeItem(PENDING_KEY);
+            window.dispatchEvent(new CustomEvent('checkvoca:snapshot-imported'));
+            showToast('단어장을 가져와 동기화했습니다');
+          }
+        } catch {}
+      }
+
+      // Clean query
+      const clean = location.pathname + (location.hash || '');
+      history.replaceState({}, '', clean);
+    })();
+  }, [auth?.user?.uid]);
+
   // Load words with merge: local(due->recent) + cloud(unique)
   useEffect(() => {
+    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
     (async () => {
       const due = (await fetchDueReviews()) as WordEntry[];
       let local = due;
@@ -134,6 +191,8 @@ export function QuizPage() {
 
   // Reload list after snapshot import
   useEffect(() => {
+    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
     const handler = () => {
       (async () => {
         const due = (await fetchDueReviews()) as WordEntry[];
@@ -161,6 +220,8 @@ export function QuizPage() {
 
   // Auto cloud sync once after login (best-effort)
   useEffect(() => {
+    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
     (async () => {
       if (!auth?.user || didSyncRef.current) return;
       try {
@@ -175,6 +236,8 @@ export function QuizPage() {
   }, [auth?.user?.uid]);
   // Best-effort enrichment for items without definitions
   useEffect(() => {
+    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
     (async () => {
       const need = words.filter((w) => !w.definitions || w.definitions.length === 0).slice(0, 10);
       if (!need.length) return;
@@ -260,30 +323,50 @@ export function QuizPage() {
     <div style={{ padding: 16, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-        {toast && (
-          <div
-            style={{
-              position: "fixed",
-              top: 12,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "rgba(17,24,39,0.95)",
-              color: "#e5e7eb",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 8,
-              padding: "8px 12px",
-              zIndex: 1000,
-              boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
-              fontSize: 13,
-            }}
-          >
-            {toast}
-          </div>
+        {toast && (
+
+          <div
+
+            style={{
+
+              position: "fixed",
+
+              top: 12,
+
+              left: "50%",
+
+              transform: "translateX(-50%)",
+
+              background: "rgba(17,24,39,0.95)",
+
+              color: "#e5e7eb",
+
+              border: "1px solid rgba(255,255,255,0.12)",
+
+              borderRadius: 8,
+
+              padding: "8px 12px",
+
+              zIndex: 1000,
+
+              boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+
+              fontSize: 13,
+
+            }}
+
+          >
+
+            {toast}
+
+          </div>
+
         )}
           <strong>
             진행 {index + 1} / {words.length}
           </strong>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <a href='/words'><button>단어장 관리</button></a>
             <span style={{ fontSize: 13 }}>{auth.user?.displayName}</span>
             <button onClick={() => auth?.signOut()}>로그아웃</button>
             <button onClick={() => location.reload()}>새로고침</button>
@@ -333,3 +416,4 @@ export function QuizPage() {
 
 
 
+// DUPLICATE REMOVED

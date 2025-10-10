@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "@checkvocage/core",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
@@ -19,3 +19,4 @@
     "vitest": "^1.6.0"
   }
 }
+

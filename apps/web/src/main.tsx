@@ -1,7 +1,8 @@
-import { render } from 'preact';
+﻿import { render } from 'preact';
 import { Route, Router } from 'wouter-preact';
 import { useEffect } from 'preact/hooks';
 import { QuizPage } from './pages/Quiz';
+import { WordsPage } from './pages/Words';
 import { AuthContext, useProvideAuth } from './auth/firebase';
 
 function Home() {
@@ -22,10 +23,10 @@ function App() {
       <Router>
         <Route path="/" component={Home} />
         <Route path="/quiz" component={QuizPage} />
+        <Route path="/words" component={WordsPage} />
       </Router>
     </AuthContext.Provider>
   );
 }
 
 render(<App />, document.getElementById('root')!);
-

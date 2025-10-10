@@ -1,18 +1,23 @@
-{
-  "hosting": {
-    "public": "apps/web/dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      { "source": "api/ko-dict", "function": "koDict" },
-      { "source": "**", "destination": "/index.html" }
-    ]
-  },
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  }
+﻿{
+    "hosting":  {
+                    "public":  "apps/web/dist",
+                    "ignore":  [
+                                   "firebase.json",
+                                   "**/.*",
+                                   "**/node_modules/**"
+                               ],
+                    "rewrites":  [
+                                     {
+                                         "destination":  "/index.html",
+                                         "source":  "**"
+                                     }
+                                 ]
+                },
+    "functions":  {
+                      "source":  "functions"
+                  },
+    "firestore":  {
+                      "rules":  "firestore.rules",
+                      "indexes":  "firestore.indexes.json"
+                  }
 }
