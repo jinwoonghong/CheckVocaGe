@@ -193,7 +193,12 @@ function App() {
         <div style="margin:8px 0 12px; padding:12px; border:1px solid rgba(255,255,255,0.12); border-radius:10px; background:#0b1220; color:#e5e7eb;">
           <div style="display:flex; gap:8px; align-items:center;">
             <label for="activation" style="font-size:13px; color:#9ca3af; min-width:120px;">단어 팝업 활성화 키</label>
-            <select id="activation" value={activation} onChange={(e: any) => setActivation(e.currentTarget.value)} style="flex:1; padding:8px; border-radius:8px; background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,0.15);">
+            <select
+              id="activation"
+              value={activation}
+              onChange={(e: any) => setActivation(e.currentTarget.value)}
+              style="flex:1; height:36px; padding:6px 8px; border-radius:8px; background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,0.15);"
+            >
               <option value="any">항상(기본)</option>
               <option value="ctrl">Ctrl 누른 상태</option>
               <option value="alt">Alt 누른 상태</option>
@@ -201,9 +206,14 @@ function App() {
               <option value="ctrl_shift">Ctrl + Shift</option>
               <option value="alt_shift">Alt + Shift</option>
             </select>
-            <button class="secondary" onClick={saveSettings}>저장</button>
+            <button
+              class="secondary"
+              onClick={saveSettings}
+              style="white-space:nowrap; min-width:64px; height:36px; padding:6px 10px; border-radius:8px;"
+            >
+              저장
+            </button>
           </div>
-          <div style="margin-top:6px; font-size:12px; color:#9ca3af;">웹 베이스 URL 옵션은 제거했습니다. 기본 배포 주소를 자동으로 사용합니다.</div>
         </div>
       )}
       <div style="margin:8px 0 12px; display:grid; grid-template-columns:1fr auto; gap:8px;">
