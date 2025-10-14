@@ -1,7 +1,6 @@
-ï»¿import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
+import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
 import { AuthContext } from '../auth/firebase';
-import { useCallback } from 'preact/hooks';
-import { getDatabase } from '@core';
+
 import {
   fetchUserWords,
   setWordIncludeInQuiz,
@@ -26,65 +25,25 @@ export function WordsPage() {
   const [filter, setFilter] = useState<'all' | 'included' | 'excluded'>('all');
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const DELETION_QUEUE_KEY = 'CHECKVOCA_DELETION_QUEUE';
-
-  function enqueueDeletion(ids: string[]): void {
-    try {
-      const cur = JSON.parse(localStorage.getItem(DELETION_QUEUE_KEY) || '[]');
-      const set = new Set<string>(Array.isArray(cur) ? cur : []);
-      ids.forEach((id) => set.add(id));
-      localStorage.setItem(DELETION_QUEUE_KEY, JSON.stringify(Array.from(set)));
-    } catch { /* ignore */ }
-  }
-
-  const processDeletionQueue = useCallback(async (): Promise<string[]> => {
-    if (!auth?.user) return [];
-    try {
-      const arr = JSON.parse(localStorage.getItem(DELETION_QUEUE_KEY) || '[]');
-      const ids = Array.isArray(arr) ? (arr as string[]) : [];
-      if (!ids.length) return [];
-      for (const id of ids) {
-        try {
-          await deleteWord(auth.user.uid, id);
-        } catch { /* ignore */ }
-      }
-      localStorage.removeItem(DELETION_QUEUE_KEY);
-      return ids;
-    } catch {
-      return [];
-    }
-  }, [auth?.user?.uid])
 
   const [tagInput, setTagInput] = useState<string>('');
   const [filters, setFilters] = useState<SavedFilter[]>([]);
   useEffect(() => {
     (async () => {
-      if (auth?.user) {
-        try {
-          setFilters(await getSavedFilters(auth.user.uid));
-        } catch { /* ignore */ }
-      }
+      if (!auth?.user) return;
+      try {
+        setFilters(await getSavedFilters(auth.user.uid));
+      } catch { /* ignore */ }
     })();
-  }, [auth]);
+  }, [auth?.user?.uid]);
 
-  // Refresh list when selection/snapshot is imported on /quiz
+  // Refresh list when selection/snapshot is imported on /quiz (cloud only)
   useEffect(() => {
     const reload = async () => {
-      if (auth?.user) {
-        try {
-          const cloud = (await fetchUserWords(auth.user.uid, 500)) as WordRow[];
-          const db = getDatabase();
-          const local = (await db.wordEntries.orderBy('createdAt').reverse().toArray()) as any[];
-          const seen = new Set(cloud.map((w) => w.id));
-          const append = (local as WordRow[]).filter((w) => !seen.has(w.id));
-          setRows([...cloud, ...append]);
-          return;
-        } catch { /* ignore */ }
-      }
+      if (!auth?.user) return;
       try {
-        const db = getDatabase();
-        const local = (await db.wordEntries.orderBy('createdAt').reverse().toArray()) as any[];
-        setRows(local as WordRow[]);
+        const cloud = (await fetchUserWords(auth.user.uid, 500)) as WordRow[];
+        setRows(cloud);
       } catch { /* ignore */ }
     };
     const handler = () => { void reload(); };
@@ -94,20 +53,12 @@ export function WordsPage() {
       window.removeEventListener('checkvoca:selection-imported', handler);
       window.removeEventListener('checkvoca:snapshot-imported', handler);
     };
-  }, [auth]);
-
-  // Apply pending deletions once logged in, then refresh list locally
-  useEffect(() => {
-    (async () => {
-      if (!auth?.user) return;
-      const deleted = await processDeletionQueue();
-      if (deleted && deleted.length) setRows((prev) => prev.filter((r) => !deleted.includes(r.id)));
-    })();
-  }, [auth, processDeletionQueue]);
+  }, [auth?.user?.uid]);
+  
 
   const saveCurrentFilter = async () => {
     if (!auth?.user) return;
-    const name = prompt('ì €ì¥í•  í•„í„° ì´ë¦„');
+    const name = prompt('ÀúÀåÇÒ ÇÊÅÍ ÀÌ¸§');
     if (!name) return;
     const item: SavedFilter = {
       id: `${Date.now()}`,
@@ -143,42 +94,21 @@ export function WordsPage() {
       ),
     );
     try {
-      if (auth?.user) {
-        for (const id of ids) await setWordTags(auth.user.uid, id, [tag]);
-      } else {
-        const db = getDatabase();
-        for (const id of ids) {
-          const cur: any = await db.wordEntries.get(id);
-          const next = Array.from(new Set([...(cur?.tags ?? []), tag]));
-          await db.wordEntries.update(id, { tags: next });
-        }
-      }
+      if (!auth?.user) return;
+      for (const id of ids) await setWordTags(auth.user.uid, id, [tag]);
     } catch { /* ignore */ }
     setTagInput('');
   };
 
   useEffect(() => {
     (async () => {
-      if (auth?.user) {
-        try {
-          const cloud = (await fetchUserWords(auth.user.uid, 500)) as WordRow[];
-          // Merge with local so freshly-added local items appear immediately
-          const db = getDatabase();
-          const local = (await db.wordEntries.orderBy('createdAt').reverse().toArray()) as any[];
-          const seen = new Set(cloud.map((w) => w.id));
-          const append = (local as WordRow[]).filter((w) => !seen.has(w.id));
-          setRows([...cloud, ...append]);
-          const pref = await getQuizPreference(auth.user.uid);
-          if (pref) setMode(pref);
-          return;
-        } catch { /* ignore */ }
-      }
-      const db = getDatabase();
-      const local = (await db.wordEntries
-        .orderBy('createdAt')
-        .reverse()
-        .toArray()) as any[];
-      setRows(local as WordRow[]);
+      if (!auth?.user) return;
+      try {
+        const cloud = (await fetchUserWords(auth.user.uid, 500)) as WordRow[];
+        setRows(cloud);
+        const pref = await getQuizPreference(auth.user.uid);
+        if (pref) setMode(pref);
+      } catch { /* ignore */ }
     })();
   }, [auth?.user?.uid]);
 
@@ -202,11 +132,8 @@ export function WordsPage() {
   const toggle = async (id: string, value: boolean) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, includeInQuiz: value } : r)));
     try {
-      if (auth?.user) await setWordIncludeInQuiz(auth.user.uid, id, value);
-      else {
-        const db = getDatabase();
-        await db.wordEntries.update(id, { includeInQuiz: value } as any);
-      }
+      if (!auth?.user) return;
+      await setWordIncludeInQuiz(auth.user.uid, id, value);
     } catch { /* ignore */ }
   };
 
@@ -240,14 +167,8 @@ export function WordsPage() {
       if (ids.length === 0) return;
       setRows((prev) => prev.map((r) => (ids.includes(r.id) ? { ...r, includeInQuiz: include } : r)));
       try {
-        if (auth?.user) {
-          for (const id of ids) {
-            await setWordIncludeInQuiz(auth.user.uid, id, include);
-          }
-        } else {
-          const db = getDatabase();
-          for (const id of ids) await db.wordEntries.update(id, { includeInQuiz: include } as any);
-        }
+        if (!auth?.user) return;
+        for (const id of ids) await setWordIncludeInQuiz(auth.user.uid, id, include);
       } catch { /* ignore */ }
     });
 
@@ -255,17 +176,11 @@ export function WordsPage() {
     withProgress(async () => {
       const ids = selectedIds;
       if (ids.length === 0) return;
-      if (!confirm(`${ids.length}ê°œ í•­ëª©ì„ ì‚­ì œí• ê¹Œìš”?`)) return;
+      if (!confirm(`${ids.length}°³ Ç×¸ñÀ» »èÁ¦ÇÒ±î¿ä?`)) return;
       setRows((prev) => prev.filter((r) => !ids.includes(r.id)));
       try {
-        const db = getDatabase();
-        await db.wordEntries.bulkDelete(ids);
-        await db.reviewStates.bulkDelete(ids);
-        if (auth?.user) {
-          await deleteWords(auth.user.uid, ids);
-        } else {
-          enqueueDeletion(ids);
-        }
+        if (!auth?.user) return;
+        await deleteWords(auth.user.uid, ids);
       } catch { /* ignore */ }
       setSelected({});
     });
@@ -274,39 +189,37 @@ export function WordsPage() {
     withProgress(async () => {
       const ids = filtered.map((r) => r.id);
       if (ids.length === 0) return;
-      if (!confirm(`í˜„ì¬ í•„í„°ì˜ ${ids.length}ê°œ í•­ëª©ì„ ì‚­ì œí• ê¹Œìš”?`)) return;
+      if (!confirm(`ÇöÀç ÇÊÅÍÀÇ ${ids.length}°³ Ç×¸ñÀ» »èÁ¦ÇÒ±î¿ä?`)) return;
       setRows((prev) => prev.filter((r) => !ids.includes(r.id)));
       try {
-        const db = getDatabase();
-        await db.wordEntries.bulkDelete(ids);
-        await db.reviewStates.bulkDelete(ids);
-        if (auth?.user) {
-          await deleteWords(auth.user.uid, ids);
-        } else {
-          enqueueDeletion(ids);
-        }
+        if (!auth?.user) return;
+        await deleteWords(auth.user.uid, ids);
       } catch { /* ignore */ }
       setSelected({});
     });
 
   const remove = async (id: string) => {
-    if (!confirm('ì´ ë‹¨ì–´ë¥¼ ì‚­ì œí• ê¹Œìš”?')) return;
+    if (!confirm('ÀÌ ´Ü¾î¸¦ »èÁ¦ÇÒ±î¿ä?')) return;
     setRows((prev) => prev.filter((r) => r.id !== id));
     try {
-      if (auth?.user) {
-        await deleteWord(auth.user.uid, id);
-      } else {
-        const db = getDatabase();
-        await db.wordEntries.delete(id);
-        await db.reviewStates.delete(id);
-        enqueueDeletion([id]);
-      }
+      if (!auth?.user) return;
+      await deleteWord(auth.user.uid, id);
     } catch { /* ignore */ }
   };
 
+  if (!auth?.user) {
+    return (
+      <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
+        <h2>·Î±×ÀÎ ÇÊ¿ä</h2>
+        <p>±¸±Û °èÁ¤À¸·Î ·Î±×ÀÎ ÈÄ ´Ü¾îÀåÀ» È®ÀÎÇÏ¼¼¿ä.</p>
+        <button onClick={() => auth?.signInWithGoogle()}>Google ·Î±×ÀÎ</button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
-      <h2 style={{ margin: 0, fontWeight: 700 }}>ë‹¨ì–´ì¥ ê´€ë¦¬</h2>
+      <h2 style={{ margin: 0, fontWeight: 700 }}>´Ü¾îÀå °ü¸®</h2>
       <div
         style={{
           margin: '12px 0',
@@ -320,7 +233,7 @@ export function WordsPage() {
           <input
             value={query}
             onInput={(e: any) => setQuery(e.currentTarget.value)}
-            placeholder='ê²€ìƒ‰: ë‹¨ì–´/ë¬¸ë§¥'
+            placeholder='°Ë»ö: ´Ü¾î/¹®¸Æ'
             style={{
               flex: 1,
               padding: '10px 12px',
@@ -334,14 +247,14 @@ export function WordsPage() {
             onChange={(e: any) => setFilter(e.currentTarget.value)}
             style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)' }}
           >
-            <option value='all'>ì „ì²´</option>
-            <option value='included'>í¬í•¨ë§Œ</option>
-            <option value='excluded'>ì œì™¸ë§Œ</option>
+            <option value='all'>ÀüÃ¼</option>
+            <option value='included'>Æ÷ÇÔ¸¸</option>
+            <option value='excluded'>Á¦¿Ü¸¸</option>
           </select>
           <div style={{ marginLeft: 8 }}>
-            <label style={{ marginRight: 10, fontSize: 13 }}>í‘œì‹œ ëª¨ë“œ</label>
+            <label style={{ marginRight: 10, fontSize: 13 }}>Ç¥½Ã ¸ğµå</label>
             <label style={{ marginRight: 6 }}>
-              <input type='radio' name='mode' checked={mode === 'all'} onChange={() => saveMode('all')} /> ?ê¾©ê»œ
+              <input type='radio' name='mode' checked={mode === 'all'} onChange={() => saveMode('all')} /> ?„ì²´
             </label>
             <label>
               <input
@@ -350,7 +263,7 @@ export function WordsPage() {
                 checked={mode === 'onlyIncluded'}
                 onChange={() => saveMode('onlyIncluded')}
               />
-              í¬í•¨ë§Œ
+              Æ÷ÇÔ¸¸
             </label>
           </div>
         </div>
@@ -358,10 +271,10 @@ export function WordsPage() {
           <input
             value={tagInput}
             onInput={(e: any) => setTagInput(e.currentTarget.value)}
-            placeholder='íƒœê·¸ ì¶”ê°€'
+            placeholder='ÅÂ±× Ãß°¡'
             style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)' }}
           />
-          <button onClick={applyTags} disabled={loading}>íƒœê·¸ ì ìš©</button>
+          <button onClick={applyTags} disabled={loading}>ÅÂ±× Àû¿ë</button>
           <select
             onChange={(e: any) => {
               const f = filters.find((x) => x.id === e.currentTarget.value);
@@ -369,38 +282,36 @@ export function WordsPage() {
             }}
             style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)' }}
           >
-            <option value=''>ì €ì¥ëœ í•„í„°</option>
+            <option value=''>ÀúÀåµÈ ÇÊÅÍ</option>
             {filters.map((f) => (
               <option value={f.id}>{f.name}</option>
             ))}
           </select>
-          <button onClick={saveCurrentFilter} disabled={!auth?.user}>í˜„ì¬ í•„í„° ì €ì¥</button>
-          <button onClick={() => setSelectionAll(true)} disabled={loading}>ì „ì²´ì„ íƒ</button>
-          <button onClick={() => setSelectionAll(false)} disabled={loading}>ì„ íƒí•´ì œ</button>
-          <button onClick={() => bulkInclude(true)} disabled={loading}>í€´ì¦ˆ í¬í•¨</button>
-          <button onClick={() => bulkInclude(false)} disabled={loading}>í€´ì¦ˆ ì œì™¸</button>
+          <button onClick={saveCurrentFilter} disabled={!auth?.user}>ÇöÀç ÇÊÅÍ ÀúÀå</button>
+          <button onClick={() => setSelectionAll(true)} disabled={loading}>ÀüÃ¼¼±ÅÃ</button>
+          <button onClick={() => setSelectionAll(false)} disabled={loading}>¼±ÅÃÇØÁ¦</button>
+          <button onClick={() => bulkInclude(true)} disabled={loading}>ÄûÁî Æ÷ÇÔ</button>
+          <button onClick={() => bulkInclude(false)} disabled={loading}>ÄûÁî Á¦¿Ü</button>
           <button
             onClick={bulkDeleteSelected}
             disabled={loading || selectedIds.length === 0}
             style={{ background: '#ef4444', color: '#fff', borderRadius: 8, padding: '8px 12px' }}
-            title={'ì„ íƒí•œ í•­ëª©ë§Œ ì‚­ì œí•©ë‹ˆë‹¤'}
-          >ì‚­ì œ(ì„ íƒ {selectedIds.length})</button>
+            title={'¼±ÅÃÇÑ Ç×¸ñ¸¸ »èÁ¦ÇÕ´Ï´Ù'}
+          >»èÁ¦(¼±ÅÃ {selectedIds.length})</button>
           <button
             onClick={bulkDeleteFiltered}
             disabled={loading || filtered.length === 0}
             style={{ background: '#ef4444', color: '#fff', borderRadius: 8, padding: '8px 12px' }}
-            title={'í˜„ì¬ í•„í„°ì˜ ì „ì²´ë¥¼ ì‚­ì œí•©ë‹ˆë‹¤'}
-          >ì‚­ì œ(í•„í„° {filtered.length})</button>
+            title={'ÇöÀç ÇÊÅÍÀÇ ÀüÃ¼¸¦ »èÁ¦ÇÕ´Ï´Ù'}
+          >»èÁ¦(ÇÊÅÍ {filtered.length})</button>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
-        ì„ íƒ í•­ëª©ì´ ì—†ìœ¼ë©´ í˜„ì¬ í•„í„°ì˜ ì „ì²´ë¥¼ ì‚­ì œí•©ë‹ˆë‹¤. ì˜¤í”„ë¼ì¸ ìƒíƒœì—ì„œ ì‚­ì œí•œ í•­ëª©ì€ ë¡œê·¸ì¸/ë™ê¸°í™” í›„ì—ë„ ì‚­ì œê°€ ìœ ì§€ë©ë‹ˆë‹¤.
-      </div>
+      <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>¼±ÅÃ Ç×¸ñÀÌ ¾øÀ¸¸é ÇöÀç ÇÊÅÍÀÇ ÀüÃ¼¸¦ »èÁ¦ÇÕ´Ï´Ù.</div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <strong>í€´ì¦ˆ ì„¤ì •</strong>
+        <strong>ÄûÁî ¼³Á¤</strong>
         <label>
-          <input type='radio' name='mode' checked={mode === 'all'} onChange={() => saveMode('all')} /> ì „ì²´(ì œì™¸ í‘œì‹œ/ì œì™¸)
+          <input type='radio' name='mode' checked={mode === 'all'} onChange={() => saveMode('all')} /> ÀüÃ¼(Á¦¿Ü Ç¥½Ã/Á¦¿Ü)
         </label>
         <label>
           <input
@@ -409,18 +320,18 @@ export function WordsPage() {
             checked={mode === 'onlyIncluded'}
             onChange={() => saveMode('onlyIncluded')}
           />
-          í¬í•¨ í‘œì‹œë§Œ(ì œì™¸)
+          Æ÷ÇÔ Ç¥½Ã¸¸(Á¦¿Ü)
         </label>
-        <span style={{ marginLeft: 'auto', fontSize: 13, color: '#9ca3af' }}>ì„ íƒ í¬í•¨ìˆ˜ {includedCount}ê°œ</span>
+        <span style={{ marginLeft: 'auto', fontSize: 13, color: '#9ca3af' }}>¼±ÅÃ Æ÷ÇÔ¼ö {includedCount}°³</span>
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            <th style={{ textAlign: 'center', width: 36 }}>ì„ íƒ</th>
-            <th style={{ textAlign: 'left' }}>ë‹¨ì–´</th>
-            <th style={{ textAlign: 'left' }}>ë¬¸ë§¥</th>
-            <th>í€´ì¦ˆ í¬í•¨</th>
+            <th style={{ textAlign: 'center', width: 36 }}>¼±ÅÃ</th>
+            <th style={{ textAlign: 'left' }}>´Ü¾î</th>
+            <th style={{ textAlign: 'left' }}>¹®¸Æ</th>
+            <th>ÄûÁî Æ÷ÇÔ</th>
             <th></th>
           </tr>
         </thead>
@@ -446,7 +357,7 @@ export function WordsPage() {
                 />
               </td>
               <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                <button onClick={() => remove(r.id)}>ì‚­ì œ</button>
+                <button onClick={() => remove(r.id)}>»èÁ¦</button>
               </td>
             </tr>
           ))}
@@ -454,10 +365,11 @@ export function WordsPage() {
       </table>
 
       <div style={{ marginTop: 12 }}>
-        <a href='/quiz'>í€´ì¦ˆë¡œ ì´ë™</a>
+        <a href='/quiz'>ÄûÁî·Î ÀÌµ¿</a>
       </div>
     </div>
   );
 }
+
 
 
