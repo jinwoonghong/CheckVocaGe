@@ -2,7 +2,7 @@
 import type { SelectionPayload } from '@core';
 import { attachSelectionWatcher } from './content/selection-watcher';
 import { SelectionTooltip } from './content/tooltip';
-import { setReady, setError, resetState } from './content/state';
+import { setReady, setError, resetState, setDefinitions, setDefinitionError, setPhonetic, setAudioUrl } from './content/state';
 import { logBreadcrumb, logError } from './content/logging';
 
 interface BackgroundResponse {
@@ -98,6 +98,70 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+// Manual search from popup: show tooltip as if a selection happened
+try {
+  chrome.runtime?.onMessage?.addListener((message: unknown, _sender, sendResponse) => {
+    (async () => {
+      try {
+        const msg = message as { type?: string; word?: string } | undefined;
+        if (msg?.type !== 'CHECKVOCA_SEARCH_WORD') return;
+        const raw = String(msg.word || '').trim();
+        if (!raw) {
+          sendResponse?.({ status: 'error', message: 'Empty word' });
+          return;
+        }
+        // Build a lightweight payload (no selection range available)
+        const payload: SelectionPayload = {
+          word: raw,
+          context: '',
+          url: window.location.href,
+          selectionRange: {
+            startContainerPath: 'body[0]',
+            startOffset: 0,
+            endContainerPath: 'body[0]',
+            endOffset: 0,
+          },
+          timestamp: Date.now(),
+          clientMeta: {
+            title: document.title,
+            language: document.documentElement.lang || navigator.language,
+            userAgent: navigator.userAgent,
+          },
+        };
+
+        // Place tooltip near top-left of the viewport
+        const rect = new DOMRect(window.scrollX + 24, window.scrollY + 24, 0, 0);
+        setReady(payload, rect);
+
+        // Lookup definitions and enrich + save
+        const result = await lookupDefinition(payload.word);
+        if (result.definitions.length) {
+          setDefinitions(result.definitions);
+        } else {
+          setDefinitionError('No definition found.');
+        }
+        setPhonetic(result.phonetic);
+        setAudioUrl(result.audioUrl);
+
+        const enriched: SelectionPayload = {
+          ...payload,
+          definitions: result.definitions,
+          phonetic: result.phonetic,
+          audioUrl: result.audioUrl,
+        };
+        await sendSelectionToBackground(enriched);
+        sendResponse?.({ status: 'ok' });
+      } catch (error) {
+        logError(error);
+        sendResponse?.({ status: 'error', message: error instanceof Error ? error.message : 'Failed' });
+      }
+    })();
+    return true; // keep channel for async
+  });
+} catch {
+  // ignore listener attach errors
+}
+
 // Snapshot handoff: when opened with ?snapshotKey=..., pass snapshot to page via postMessage
 try {
   const url = new URL(location.href);
@@ -110,6 +174,19 @@ try {
         chrome.storage.local.remove(key);
       }
       // Clean URL
+      const clean = location.pathname + (location.hash || '');
+      history.replaceState({}, '', clean);
+    });
+  }
+  // Single selection handoff: ?selectionKey=...
+  const selKey = url.searchParams.get('selectionKey');
+  if (selKey && chrome?.storage?.local) {
+    chrome.storage.local.get(selKey, (items) => {
+      const data = items?.[selKey];
+      if (data) {
+        window.postMessage({ type: 'CHECKVOCA_SELECTION', payload: data }, '*');
+        chrome.storage.local.remove(selKey);
+      }
       const clean = location.pathname + (location.hash || '');
       history.replaceState({}, '', clean);
     });

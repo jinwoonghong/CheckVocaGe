@@ -57,6 +57,8 @@ function useBootstrapFromSnapshot(): void {
   useEffect(() => {
     const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
     const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
+    const PENDING_SEL_KEY = 'CHECKVOCA_PENDING_SELECTION';
+    const storePendingSelection = (data: any) => { try { localStorage.setItem(PENDING_SEL_KEY, JSON.stringify(data)); } catch {} };
     const hash = typeof location !== "undefined" ? location.hash : "";
     const m = hash.match(/snapshot=([^&]+)/);
     if (m) {
@@ -72,8 +74,12 @@ function useBootstrapFromSnapshot(): void {
       try {
         if (ev.source !== window) return;
         const d: any = ev.data;
-        if (!d || d.type !== 'CHECKVOCA_SNAPSHOT' || !d.payload) return;
-        storePending(d.payload);
+        if (!d || !d.payload) return;
+        if (d.type === 'CHECKVOCA_SNAPSHOT') {
+          storePending(d.payload);
+        } else if (d.type === 'CHECKVOCA_SELECTION') {
+          storePendingSelection(d.payload);
+        }
       } catch { /* ignore */ }
     }
     window.addEventListener('message', onMessage);
@@ -116,6 +122,7 @@ export function QuizPage() {
   useEffect(() => {
     (async () => {
       const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+      const PENDING_SEL_KEY = 'CHECKVOCA_PENDING_SELECTION';
       const q = typeof location !== 'undefined' ? location.search : '';
       const params = new URLSearchParams(q);
       const action = params.get('action');
@@ -155,6 +162,17 @@ export function QuizPage() {
             localStorage.removeItem(PENDING_KEY);
             window.dispatchEvent(new CustomEvent('checkvoca:snapshot-imported'));
             showToast('단어장을 가져와 동기화했습니다');
+          }
+        } catch {}
+      } else if (action === 'importSelection') {
+        try {
+          const raw = localStorage.getItem(PENDING_SEL_KEY);
+          if (raw) {
+            const payload = JSON.parse(raw);
+            const mod = await import('@core');
+            await (mod as any).registerSelection(payload);
+            localStorage.removeItem(PENDING_SEL_KEY);
+            showToast('단어를 추가했습니다');
           }
         } catch {}
       }

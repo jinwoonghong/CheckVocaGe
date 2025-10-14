@@ -1,5 +1,5 @@
 ﻿import { defineConfig } from 'vite';
-import preact from '@preact/preset-vite';
+// Use dynamic import to ensure ESM entry is used
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
@@ -17,26 +17,29 @@ const sanitizeUnicodePlugin = {
   },
 };
 
-export default defineConfig({
-  root: __dirname,
-  plugins: [preact(), sanitizeUnicodePlugin],
-  publicDir: resolve(__dirname, 'public'),
-  resolve: {
-    alias: {
-      '@core': resolve(__dirname, '../../packages/core/src')
-    }
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: resolve(__dirname, 'src/index.ts'),
-      output: {
-        format: 'iife',
-        inlineDynamicImports: true,
-        entryFileNames: 'content.js',
-        assetFileNames: 'assets/[name]-[hash][extname]'
-      }
-    }
-  }
+export default defineConfig(async () => {
+  const preact = (await import('@preact/preset-vite')).default;
+  return {
+    root: __dirname,
+    plugins: [preact(), sanitizeUnicodePlugin],
+    publicDir: resolve(__dirname, 'public'),
+    resolve: {
+      alias: {
+        '@core': resolve(__dirname, '../../packages/core/src'),
+      },
+    },
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      rollupOptions: {
+        input: resolve(__dirname, 'src/index.ts'),
+        output: {
+          format: 'iife',
+          inlineDynamicImports: true,
+          entryFileNames: 'content.js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
+        },
+      },
+    },
+  };
 });

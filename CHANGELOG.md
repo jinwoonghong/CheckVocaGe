@@ -1,39 +1,37 @@
-﻿# Changelog
-## 1.2.0
-- 로그인 상태 구분(로딩/미로그인/로그인)으로 /quiz 진입 시 팝업 재등장 방지
-- 단어장 관리(/words) 추가: 퀴즈 포함 토글, 출제 모드(전체/포함만), 단어 삭제(클라우드/로컬)
-- 동기화 안정화: 문서 ID 안전화(금지문자 치환+길이 축약), undefined 필드 제거
-- Firestore Rules 정리: users/{uid}/words|reviews|settings 본인만 R/W(배포)
-- Ko-dict 프록시 제거(무료 플랜) + VITE_ENABLE_KO_DICT 플래그로 보강 호출 비활성화
-- 상단 퀴즈 화면에 단어장 관리 버튼 추가
+# Changelog
 
-## ?뚯뒪??諛⑸쾿
+## 1.2.2
+- 팝업 내부 결과 표시: 정의/IPA/발음, 로딩/오류 UI 추가
+- 팝업 ‘단어 저장’ 버튼 추가: 확장 DB 저장 + 웹으로 핸드오프(importSelection)
+- 콘텐츠 스크립트가 `selectionKey` 처리 → 웹에 선택 전달(postMessage)
+- 단어장(/words) 병합 로딩: 클라우드 + 로컬 동시 반영(삭제 후 재추가 즉시 표시)
+- 단어장 일괄 삭제 UX 분리: 삭제(선택 N), 삭제(필터 M)
+- 삭제 동기화: 미로그인 삭제를 로그인 시 클라우드에서도 일괄 삭제
+- 빌드 안정화: Vite 프리셋 동적 import(CJS/ESM 충돌 해결), BOM 제거
+- Firebase Hosting로 최신 웹 배포 완료
+
+## 1.2.1
+- 확장 팝업에 ‘단어검색’ 입력/버튼 추가
+- 입력한 영어 단어를 현재 탭에 툴팁으로 표시(선택과 동일한 결과)
+- CHANGELOG/TODO 한글 인코딩(UTF-8) 정리
+
+## 1.2.0
+- 로그인 상태 구분(로딩/미로그인/로그인) 개선, /quiz 진입 시 팝업 오동작 수정
+- 단어장(/words) 추가: 퀴즈 포함 여부, 출제 모드(전체/즐겨찾기), 저장(클라우드/로컬)
+- 안정화: 문서 ID 표준화(금칙문자 치환+길이 축약), undefined 필드 정리
+- Firestore Rules 배포: users/{uid}/words|reviews|settings 본인만 R/W(배포)
+- Ko-dict 사전 조회(무료 플랜) + VITE_ENABLE_KO_DICT 플래그로 보강 조회 비활성화
+- 단어 목록 화면에 단어장 이동 버튼 추가
+
+## 배포 방법
 - npx -y pnpm@9 --filter @checkvocage/web build
 - npx -y pnpm@9 --filter @checkvocage/extension build
-- npx firebase-tools deploy --only hosting   
+- npx firebase-tools deploy --only hosting
 
 ## 1.1.0
-- ?뺤옣 ?앹뾽 湲곕뒫 媛뺥솕: 理쒓렐 ?⑥뼱 紐⑸줉 ?쒖떆, 紐⑤컮?쇱쎒 ?댁쫰 ?닿린, ?댁쫰 留곹겕 蹂듭궗, CSV ?ㅼ슫濡쒕뱶(UTF-8 BOM) 吏??- ?댁쫰/?숈뒿: SM-2 湲곕컲 ?ㅼ?以꾨쭅怨??댁쫰 梨꾩젏(Again/Good/Easy), Due 由щ럭 ?곗꽑 異쒖젣
-- ?듭뀡 ?섏씠吏 異붽?: 紐⑤컮?쇱쎒 湲곕낯 URL ?ㅼ젙 吏???앹뾽?먯꽌 ?ъ슜), `.env`??`VITE_WEB_BASE`??吏??- ?뱀빋: 紐⑤컮???ㅽ??쇱쓽 `/quiz` ?섏씠吏 異붽?, Google 濡쒓렇??媛?? ?ㅻ깄???댁떆 ?꾪룷?? Firestore ?숆린???좏떥 諛?由щ럭 ?곹깭 諛섏쁺
-- 湲고?: 留ㅻ땲?섏뒪??寃쎈줈 ?뺣━ 諛?鍮뚮뱶 援ъ꽦 媛쒖꽑
-
-?ъ슜 諛⑸쾿(?뺤옣 ?꾨줈洹몃옩 + ?댁쫰)
-- 鍮뚮뱶/?ㅼ튂
-  - 猷⑦듃?먯꽌 `pnpm install` ??`pnpm build` ?ㅽ뻾 (or `cd apps/extension && pnpm build`)
-  - Chrome `chrome://extensions` ??媛쒕컻??紐⑤뱶 ??`apps/extension/dist` ?대뜑瑜?"?뺤텞?댁젣???뺤옣 ?꾨줈洹몃옩??濡쒕뱶"濡?異붽?
-  - 紐⑤컮?쇱쎒 二쇱냼 ?ㅼ젙: ?뺤옣 ?듭뀡 ?섏씠吏?먯꽌 Web Base URL???ㅼ젙?섍굅??`apps/extension/.env`??`VITE_WEB_BASE` 媛믪쓣 ?ㅼ젙
-- ?ъ슜
-  - ?꾩쓽 ?뱁럹?댁??먯꽌 ?곸뼱 ?⑥뼱瑜??붾툝?대┃/?쒕옒洹명븯硫?Tooltip???쒖떆?⑸땲???곣넂???? IPA, 諛쒖쓬 ?ъ깮, 利먭꺼李얘린).
-  - ?좏깮???⑥뼱? 臾몃㎘? IndexedDB???먮룞 ??λ릺硫? ?숈씪 ?⑥뼱 ?ъ“?뚮뒗 10遺?TTL 罹먯떆瑜??ъ슜?⑸땲??
-  - ?뺤옣 ?앹뾽?먯꽌 理쒓렐 ?⑥뼱瑜??뺤씤?섍퀬, "?댁쫰 ?쒖옉(紐⑤컮?쇱쎒)"?쇰줈 `/quiz`???묒냽?섍굅?? "CSV ?ㅼ슫濡쒕뱶"濡??⑥뼱?μ쓣 ?대낫?????덉뒿?덈떎.
-  - ?뱀빋 `/quiz`??Google 濡쒓렇?????댁슜 媛?ν븯硫? SM-2 湲곕컲?쇰줈 Due 由щ럭媛 ?곗꽑 異쒖젣?⑸땲??
-
-## 1.0.0
-- 肄섑뀗痢좎뿉???⑥뼱 ?좏깮/?쒕옒洹?媛먯? 諛?Tooltip ?쒖떆
-- ?곣넂????議고쉶(?ㅼ씠踰?enko) + IPA/?ㅻ뵒??蹂닿컯(dictionaryapi.dev)
-- 諛쒖쓬 ?ъ깮 踰꾪듉, IPA ?쒓린
-- ?뺤쓽 紐⑸줉 遺덈┸ ?뚮뜑留? HTML ?쒓렇 ?쒓굅/?뷀떚???붿퐫??- 臾몃㎘ ?ㅻ땲??異붿텧(怨쇰떎 ?몄텧 諛⑹?), ?몃??대┃/X 踰꾪듉?쇰줈 ?リ린
-- IndexedDB ????좏깮 ???, ?湲곗뿴 FIFO ?덉젙??- 諛곌꼍 議고쉶 10遺?TTL 罹먯떆
-- ????뚯뒪??鍮뚮뱶/由고듃 ?듦낵
-
+- 팝업 기능 강화: 최근 단어, 모바일웹 사이즈, 퀴즈 링크 복사, CSV 다운로드(UTF-8 BOM)
+- 퀴즈/학습: SM-2 스케줄링·채점(Again/Good/Easy), Due 리뷰 우선 출제
+- 옵션 페이지: 모바일웹 기본 URL(Web Base) 설정, `.env`의 `VITE_WEB_BASE` 지원
+- 웹앱: 모바일 `/quiz` 추가, Google 로그인, 스냅샷 내보내기/가져오기, Firestore R/W 반영
+- 기타: 매니페스트 경로 정리 및 빌드 구성 개선
 

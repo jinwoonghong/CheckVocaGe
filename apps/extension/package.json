@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "@checkvocage/extension",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,7 +18,7 @@
     "@preact/preset-vite": "^2.10.2",
     "@types/chrome": "0.0.262",
     "typescript": "^5.5.4",
-    "vite": "^5.4.8",
+    "vite": "5.4.20",
     "vitest": "^1.6.0"
   }
 }

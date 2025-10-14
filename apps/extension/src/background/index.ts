@@ -1,6 +1,6 @@
 ﻿/// <reference types="chrome" />
 import type { SelectionPayload } from '@core';
-import { registerSelection, getDatabase } from '@core';
+import { registerSelection } from '@core';
 
 interface LookupResult {
   definitions: string[];
