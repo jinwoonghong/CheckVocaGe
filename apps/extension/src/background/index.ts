@@ -171,6 +171,7 @@ type InMessage =
   | { type: 'CHECKVOCA_SELECTION'; payload: SelectionPayload }
   | { type: 'CHECKVOCA_LOOKUP'; word: string }
   | { type: 'CHECKVOCA_EXPORT_CSV' }
+  | { type: 'CHECKVOCA_AUTH_PING'; origin?: string; hasAuth?: boolean }
   | { type: string; [k: string]: unknown };
 
 chrome.runtime?.onMessage?.addListener((message: unknown, _sender, sendResponse) => {
@@ -191,6 +192,28 @@ chrome.runtime?.onMessage?.addListener((message: unknown, _sender, sendResponse)
         }
         const result = await lookup(word);
         sendResponse({ status: 'ok', ...result });
+        return;
+      }
+      if (msg?.type === 'CHECKVOCA_AUTH_PING') {
+        try {
+          const hasAuth = Boolean((msg as any).hasAuth);
+          const origin = String((msg as any).origin || '');
+          // Compare against configured web base
+          const base = await new Promise<string>((resolve) => {
+            try {
+              chrome.storage?.sync?.get({ webBaseUrl: '' }, (items) => resolve(String(items?.webBaseUrl || '')));
+            } catch {
+              resolve('');
+            }
+          });
+          const expectedOrigin = (() => {
+            try { return base ? new URL(base).origin : 'https://checkvocage.web.app'; } catch { return 'https://checkvocage.web.app'; }
+          })();
+          if (origin === expectedOrigin) {
+            try { chrome.storage?.local?.set({ webAuthStatus: hasAuth }); } catch {}
+          }
+        } catch {}
+        sendResponse({ status: 'ok' });
         return;
       }
       if (msg?.type === 'CHECKVOCA_EXPORT_CSV') {

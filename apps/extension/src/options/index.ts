@@ -1,6 +1,7 @@
 ﻿/// <reference types="chrome" />
 
 const input = document.getElementById('webBase') as HTMLInputElement;
+const activationSel = document.getElementById('activation') as HTMLSelectElement;
 const saveBtn = document.getElementById('save') as HTMLButtonElement;
 const statusEl = document.getElementById('status') as HTMLDivElement;
 
@@ -27,8 +28,10 @@ async function load() {
   try {
     const storage = getStorage();
     if (!storage) return;
-    storage.get({ webBaseUrl: '' }, (items) => {
+    storage.get({ webBaseUrl: '', activationModifier: 'any' }, (items) => {
       input.value = items.webBaseUrl ?? '';
+      const v = String(items.activationModifier || 'any');
+      if ([ 'any','ctrl','alt','shift','ctrl_shift','alt_shift' ].includes(v)) activationSel.value = v;
     });
   } catch {
     setStatus('불러오기 실패', false);
@@ -40,7 +43,8 @@ async function save() {
     const storage = getStorage();
     if (!storage) return;
     const value = normalizeUrl(input.value);
-    storage.set({ webBaseUrl: value }, () => setStatus('저장 완료'));
+    const mod = activationSel.value;
+    storage.set({ webBaseUrl: value, activationModifier: mod }, () => setStatus('저장 완료'));
   } catch {
     setStatus('저장 실패', false);
   }

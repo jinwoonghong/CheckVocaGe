@@ -191,6 +191,13 @@ try {
       history.replaceState({}, '', clean);
     });
   }
+  // Report auth status to background for popup toggle
+  try {
+    const hasAuth = Object.keys(localStorage || {}).some((k) => k.startsWith('firebase:authUser:'));
+    chrome.runtime?.sendMessage?.({ type: 'CHECKVOCA_AUTH_PING', origin: location.origin, hasAuth });
+  } catch {
+    // ignore
+  }
 } catch {
   // ignore
 }

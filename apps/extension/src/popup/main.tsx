@@ -1,4 +1,4 @@
-/// <reference types="chrome" />
+﻿/// <reference types="chrome" />
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { getDatabase, exportSnapshot, subscribeCacheEvent } from '@core';
@@ -161,6 +161,7 @@ function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>();
   const [lastSavedWord, setLastSavedWord] = useState<string | undefined>();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
     const loadRecent = async () => {
@@ -186,13 +187,29 @@ function App() {
     return () => off();
   }, []);
 
+  // Observe web auth status
+  useEffect(() => {
+    try {
+      chrome.storage?.local?.get?.({ webAuthStatus: false }, (items) => setIsLoggedIn(Boolean(items?.webAuthStatus)));
+      const listener = (changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
+        if (area === 'local' && Object.prototype.hasOwnProperty.call(changes, 'webAuthStatus')) {
+          setIsLoggedIn(Boolean(changes.webAuthStatus.newValue));
+        }
+      };
+      chrome.storage?.onChanged?.addListener(listener);
+      return () => chrome.storage?.onChanged?.removeListener?.(listener as any);
+    } catch {
+      return () => undefined;
+    }
+  }, []);
+
   return (
     <div class="wrap">
       <h1>WebVoca</h1>
       <div style="margin:8px 0 12px; display:grid; grid-template-columns:1fr auto; gap:8px;">
         <input
           type="text"
-          placeholder="영어단어 입력"
+          placeholder="?곸뼱?⑥뼱 ?낅젰"
           value={query}
           onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
@@ -251,8 +268,11 @@ function App() {
               await new Promise<void>((resolve) => {
                 try { chrome.storage?.local?.set({ [key]: { word, context: '', url: location.origin, selectionRange: { startContainerPath: 'body[0]', startOffset: 0, endContainerPath: 'body[0]', endOffset: 0 }, timestamp: Date.now(), clientMeta: { title: document.title, language: navigator.language }, definitions: defs, phonetic, audioUrl } }, () => resolve()); } catch { resolve(); }
               });
+              try { chrome.storage?.local?.set({ CHECKVOCA_PENDING_SELECTION_KEY: key }, () => void 0); } catch {}
               const base = await getWebBaseUrl();
-              chrome.tabs?.create?.({ url: `${base}/quiz?action=importSelection&selectionKey=${encodeURIComponent(key)}` });
+              if (isLoggedIn) {
+                chrome.tabs?.create?.({ url: `${base}/quiz?action=importSelection&selectionKey=${encodeURIComponent(key)}` });
+              }
             } catch {}
           }}>단어 저장</button>
           {lastSavedWord && <small style="color:#9ca3af; align-self:center;">저장됨: {lastSavedWord}</small>}
@@ -261,15 +281,15 @@ function App() {
       {(loading || error || defs.length > 0) && (
         <div style="margin: 10px 0 14px; padding:12px; border:1px solid rgba(255,255,255,0.12); border-radius:10px; background:#0b1220;">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-            <strong style="font-size:14px;">검색 결과</strong>
+            <strong style="font-size:14px;">寃??寃곌낵</strong>
             {phonetic && <span style="color:#9ca3af;">/{phonetic}/</span>}
             <button
               style="margin-left:auto; padding:4px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:transparent; color:#e5e7eb;"
               disabled={!audioUrl}
               onClick={() => { if (audioUrl) new Audio(audioUrl).play().catch(() => {}); }}
-            >발음</button>
+            >諛쒖쓬</button>
           </div>
-          {loading && <div style="color:#93a1ff;">불러오는 중...</div>}
+          {loading && <div style="color:#93a1ff;">遺덈윭?ㅻ뒗 以?..</div>}
           {error && <div style="color:#f87171;">{error}</div>}
           {!loading && !error && defs.length > 0 && (
             <ul style="margin:6px 0; padding-left:16px;">
@@ -277,27 +297,38 @@ function App() {
             </ul>
           )}
           {!loading && !error && defs.length === 0 && (
-            <div style="color:#f87171;">정의를 찾지 못했습니다.</div>
+            <div style="color:#f87171;">?뺤쓽瑜?李얠? 紐삵뻽?듬땲??</div>
           )}
         </div>
-      )}
-      <div class="auth" style="display:flex; gap:8px; margin: 6px 0 10px;">
-        <button class="secondary" onClick={openLogin}>로그인(모바일웹)</button>
-        <button class="secondary" onClick={openLogout}>로그아웃(모바일웹)</button>
+      )}      <div class="auth" style="display:flex; gap:8px; margin: 6px 0 10px;">
+        <button class="secondary" onClick={async () => {
+          const base = await getWebBaseUrl();
+          let target = `${base}/quiz`;
+          try {
+            chrome.storage?.local?.get?.(["CHECKVOCA_PENDING_SELECTION_KEY"], (items) => {
+              const k = String(items?.CHECKVOCA_PENDING_SELECTION_KEY || '').trim();
+              if (k && !isLoggedIn) target = `${base}/quiz?action=importSelection&selectionKey=${encodeURIComponent(k)}`;
+              chrome.tabs?.create?.({ url: isLoggedIn ? `${base}/quiz?logout=1` : target });
+              if (k && !isLoggedIn) try { chrome.storage?.local?.remove?.('CHECKVOCA_PENDING_SELECTION_KEY'); } catch {}
+            });
+          } catch {
+            chrome.tabs?.create?.({ url: isLoggedIn ? `${base}/quiz?logout=1` : `${base}/quiz` });
+          }
+        }}>{isLoggedIn ? '로그아웃(모바일웹)' : '로그인(모바일웹)'}</button>
       </div>
       <div style="margin-bottom:10px;">
-        <small>최근 조회 단어</small>
+        <small>理쒓렐 議고쉶 ?⑥뼱</small>
         <ul style="maxHeight:180px;overflow:auto;margin:6px 0;padding-left:16px;">
-          {words.length === 0 && <li>표시할 단어가 없습니다.</li>}
+          {words.length === 0 && <li>?쒖떆???⑥뼱媛 ?놁뒿?덈떎.</li>}
           {words.map((w) => (
             <li key={w.id} title={w.context}>{w.word}</li>
           ))}
         </ul>
       </div>
       <div class="actions" style="display:grid;gap:8px;">
-        <button onClick={openQuiz}>퀴즈 시작(모바일웹)</button>
-        <button class="secondary" onClick={copyLink}>퀴즈 링크 복사</button>
-        <button class="secondary" onClick={sendSnapshotToWeb}>모바일로 보내기(스냅샷)</button>
+        <button onClick={openQuiz}>?댁쫰 ?쒖옉(紐⑤컮?쇱쎒)</button>
+        <button class="secondary" onClick={copyLink}>?댁쫰 留곹겕 蹂듭궗</button>
+        <button class="secondary" onClick={sendSnapshotToWeb}>紐⑤컮?쇰줈 蹂대궡湲??ㅻ깄??</button>
         <button
           class="secondary"
           onClick={() => {
@@ -316,14 +347,14 @@ function App() {
             }, 1000);
           }}
         >
-          CSV 다운로드
+          CSV ?ㅼ슫濡쒕뱶
         </button>
-        <small>단어장(IndexedDB) 기반 기능</small>
+        <small>?⑥뼱??IndexedDB) 湲곕컲 湲곕뒫</small>
         {adLeft > 0 && (
           <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);">
             <div style="background:#111827;color:#e5e7eb;padding:16px 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);text-align:center;">
-              <div style="margin-bottom:8px;font-weight:600;">광고 요청 중...</div>
-              <div style="font-size:13px;">{adLeft}초 후 다운로드 시작</div>
+              <div style="margin-bottom:8px;font-weight:600;">愿묎퀬 ?붿껌 以?..</div>
+              <div style="font-size:13px;">{adLeft}珥????ㅼ슫濡쒕뱶 ?쒖옉</div>
             </div>
           </div>
         )}
@@ -333,3 +364,7 @@ function App() {
 }
 
 render(<App />, document.getElementById('root')!);
+
+
+
+

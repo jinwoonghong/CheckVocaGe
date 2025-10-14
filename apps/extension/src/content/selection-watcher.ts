@@ -65,12 +65,49 @@ export interface DefinitionResult {
   audioUrl?: string;
 }
 
+type ActivationModifier = 'any' | 'ctrl' | 'alt' | 'shift' | 'ctrl_shift' | 'alt_shift';
+
+let activationModifier: ActivationModifier = 'any';
+
+function loadActivationModifier(): void {
+  try {
+    const storage = (chrome as any)?.storage?.sync ?? (chrome as any)?.storage?.local;
+    storage?.get?.({ activationModifier: 'any' }, (items: any) => {
+      const v = String(items?.activationModifier || 'any');
+      activationModifier = (['any','ctrl','alt','shift','ctrl_shift','alt_shift'] as string[]).includes(v) ? (v as ActivationModifier) : 'any';
+    });
+    (chrome as any)?.storage?.onChanged?.addListener?.((changes: any, area: string) => {
+      if ((area === 'sync' || area === 'local') && changes?.activationModifier) {
+        const nv = String(changes.activationModifier.newValue || 'any');
+        activationModifier = (['any','ctrl','alt','shift','ctrl_shift','alt_shift'] as string[]).includes(nv) ? (nv as ActivationModifier) : 'any';
+      }
+    });
+  } catch {
+    activationModifier = 'any';
+  }
+}
+
+function modifiersMatch(ev?: MouseEvent | KeyboardEvent): boolean {
+  const needCtrl = activationModifier === 'ctrl' || activationModifier === 'ctrl_shift';
+  const needAlt = activationModifier === 'alt' || activationModifier === 'alt_shift';
+  const needShift = activationModifier === 'shift' || activationModifier === 'ctrl_shift' || activationModifier === 'alt_shift';
+  if (activationModifier === 'any') return true;
+  if (!ev) return false;
+  const okCtrl = !needCtrl || !!(ev as any).ctrlKey;
+  const okAlt = !needAlt || !!(ev as any).altKey;
+  const okShift = !needShift || !!(ev as any).shiftKey;
+  return okCtrl && okAlt && okShift;
+}
+
 export function attachSelectionWatcher(
   callback: (payload: SelectionPayload, metadata: { rect: DOMRect | null }) => void,
   lookupDefinition: (word: string) => Promise<DefinitionResult>,
   onResult?: (payload: SelectionPayload, result: DefinitionResult) => void,
 ): void {
-  const handler = () => {
+  loadActivationModifier();
+
+  const handler = (ev?: MouseEvent | KeyboardEvent) => {
+    if (!modifiersMatch(ev)) return;
     const selection = window.getSelection();
     if (!selection) return;
     const result = buildPayload(selection);
@@ -97,13 +134,13 @@ export function attachSelectionWatcher(
       });
   };
 
-  document.addEventListener('dblclick', handler);
+  document.addEventListener('dblclick', (ev) => handler(ev));
   document.addEventListener('mouseup', (event) => {
-    if (event.button === 0) handler();
+    if (event.button === 0) handler(event);
   });
   document.addEventListener('keyup', (event) => {
     if (event.key === 'Shift' || event.key.startsWith('Arrow')) {
-      handler();
+      handler(event);
     }
   });
 }
