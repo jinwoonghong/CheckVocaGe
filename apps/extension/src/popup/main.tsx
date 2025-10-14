@@ -18,48 +18,7 @@ function extractFirstEnglishWord(input: string): string | null {
   return m ? m[0] : null;
 }
 
-function sendSearchToActiveTab(raw: string): void {
-  const word = extractFirstEnglishWord(raw);
-  if (!word) return;
-  try {
-    chrome.tabs?.query?.({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs?.[0]?.id;
-      if (typeof tabId !== 'number') return;
-      const message = { type: 'CHECKVOCA_SEARCH_WORD', word } as const;
-      let responded = false;
-      try {
-        chrome.tabs?.sendMessage?.(tabId, message, (resp?: { status?: string }) => {
-          responded = true;
-          if (chrome.runtime.lastError || resp?.status !== 'ok') {
-            try {
-              chrome.scripting?.executeScript?.(
-                { target: { tabId }, files: ['content.js'] },
-                () => { try { chrome.tabs?.sendMessage?.(tabId, message, () => void 0); } catch {} },
-              );
-            } catch {}
-          }
-        });
-      } catch {
-        try {
-          chrome.scripting?.executeScript?.(
-            { target: { tabId }, files: ['content.js'] },
-            () => { try { chrome.tabs?.sendMessage?.(tabId, message, () => void 0); } catch {} },
-          );
-        } catch {}
-      }
-      setTimeout(() => {
-        if (!responded) {
-          try {
-            chrome.scripting?.executeScript?.(
-              { target: { tabId }, files: ['content.js'] },
-              () => { try { chrome.tabs?.sendMessage?.(tabId, message, () => void 0); } catch {} },
-            );
-          } catch {}
-        }
-      }, 250);
-    });
-  } catch {}
-}
+// removed unused: sendSearchToActiveTab
 
 type LookupResult = { definitions: string[]; phonetic?: string; audioUrl?: string };
 
@@ -141,15 +100,9 @@ async function sendSnapshotToWeb(): Promise<void> {
   }
 }
 
-async function openLogin(): Promise<void> {
-  const webBase = await getWebBaseUrl();
-  chrome.tabs?.create?.({ url: `${webBase}/quiz` });
-}
+// removed unused: openLogin
 
-async function openLogout(): Promise<void> {
-  const webBase = await getWebBaseUrl();
-  chrome.tabs?.create?.({ url: `${webBase}/quiz?logout=1` });
-}
+// removed unused: openLogout
 
 function App() {
   const [words, setWords] = useState<WordEntry[]>([]);
@@ -173,7 +126,8 @@ function App() {
           .limit(300)
           .toArray()) as any[];
         rows.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
-        setWords(rows.slice(0, 20) as WordEntry[]);
+        const filtered = rows.filter((r: any) => /^[A-Za-z]/.test(String(r?.word || '')));
+        setWords(filtered.slice(0, 5) as WordEntry[]);
       } catch {
         setWords([]);
       }
@@ -205,11 +159,20 @@ function App() {
 
   return (
     <div class="wrap">
-      <h1>WebVoca</h1>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <h1 style={{ margin: 0 }}>WebVoca</h1>
+        <button
+          class="secondary"
+          style="background:#374151;"
+          onClick={() => {
+            try { chrome.runtime?.openOptionsPage?.(); } catch { /* noop */ }
+          }}
+        >환경설정</button>
+      </div>
       <div style="margin:8px 0 12px; display:grid; grid-template-columns:1fr auto; gap:8px;">
         <input
           type="text"
-          placeholder="?곸뼱?⑥뼱 ?낅젰"
+          placeholder="영어단어 입력"
           value={query}
           onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
@@ -281,15 +244,15 @@ function App() {
       {(loading || error || defs.length > 0) && (
         <div style="margin: 10px 0 14px; padding:12px; border:1px solid rgba(255,255,255,0.12); border-radius:10px; background:#0b1220;">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-            <strong style="font-size:14px;">寃??寃곌낵</strong>
+            <strong style="font-size:14px;">검색 결과</strong>
             {phonetic && <span style="color:#9ca3af;">/{phonetic}/</span>}
             <button
               style="margin-left:auto; padding:4px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:transparent; color:#e5e7eb;"
               disabled={!audioUrl}
               onClick={() => { if (audioUrl) new Audio(audioUrl).play().catch(() => {}); }}
-            >諛쒖쓬</button>
+            >발음</button>
           </div>
-          {loading && <div style="color:#93a1ff;">遺덈윭?ㅻ뒗 以?..</div>}
+          {loading && <div style="color:#93a1ff;">불러오는 중...</div>}
           {error && <div style="color:#f87171;">{error}</div>}
           {!loading && !error && defs.length > 0 && (
             <ul style="margin:6px 0; padding-left:16px;">
@@ -297,7 +260,7 @@ function App() {
             </ul>
           )}
           {!loading && !error && defs.length === 0 && (
-            <div style="color:#f87171;">?뺤쓽瑜?李얠? 紐삵뻽?듬땲??</div>
+            <div style="color:#f87171;">정의를 찾지 못했습니다.</div>
           )}
         </div>
       )}      <div class="auth" style="display:flex; gap:8px; margin: 6px 0 10px;">
@@ -317,18 +280,18 @@ function App() {
         }}>{isLoggedIn ? '로그아웃(모바일웹)' : '로그인(모바일웹)'}</button>
       </div>
       <div style="margin-bottom:10px;">
-        <small>理쒓렐 議고쉶 ?⑥뼱</small>
+        <small>최근 조회 단어</small>
         <ul style="maxHeight:180px;overflow:auto;margin:6px 0;padding-left:16px;">
-          {words.length === 0 && <li>?쒖떆???⑥뼱媛 ?놁뒿?덈떎.</li>}
+          {words.length === 0 && <li>표시할 단어가 없습니다.</li>}
           {words.map((w) => (
             <li key={w.id} title={w.context}>{w.word}</li>
           ))}
         </ul>
       </div>
       <div class="actions" style="display:grid;gap:8px;">
-        <button onClick={openQuiz}>?댁쫰 ?쒖옉(紐⑤컮?쇱쎒)</button>
-        <button class="secondary" onClick={copyLink}>?댁쫰 留곹겕 蹂듭궗</button>
-        <button class="secondary" onClick={sendSnapshotToWeb}>紐⑤컮?쇰줈 蹂대궡湲??ㅻ깄??</button>
+        <button onClick={openQuiz}>퀴즈 시작(모바일웹)</button>
+        <button class="secondary" onClick={copyLink}>퀴즈 링크 복사</button>
+        <button class="secondary" onClick={sendSnapshotToWeb}>모바일로 보내기(스냅샷)</button>
         <button
           class="secondary"
           onClick={() => {
@@ -347,14 +310,14 @@ function App() {
             }, 1000);
           }}
         >
-          CSV ?ㅼ슫濡쒕뱶
+          CSV 다운로드
         </button>
-        <small>?⑥뼱??IndexedDB) 湲곕컲 湲곕뒫</small>
+        <small>단어장(IndexedDB) 기반 기능</small>
         {adLeft > 0 && (
           <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);">
             <div style="background:#111827;color:#e5e7eb;padding:16px 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);text-align:center;">
-              <div style="margin-bottom:8px;font-weight:600;">愿묎퀬 ?붿껌 以?..</div>
-              <div style="font-size:13px;">{adLeft}珥????ㅼ슫濡쒕뱶 ?쒖옉</div>
+              <div style="margin-bottom:8px;font-weight:600;">광고 요청 중...</div>
+              <div style="font-size:13px;">{adLeft}초 후 다운로드 시작</div>
             </div>
           </div>
         )}

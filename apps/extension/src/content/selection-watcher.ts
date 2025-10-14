@@ -6,6 +6,11 @@ import { setDefinitions, setDefinitionError, setPhonetic, setAudioUrl } from './
 
 const MIN_LENGTH = 1;
 const MAX_LENGTH = 120;
+const KOREAN = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/; // Jamo + Hangul Compatibility + Syllables
+
+function isEnglishWord(s: string): boolean {
+  return /^[A-Za-z](?:[A-Za-z'\-]*[A-Za-z])?$/.test(s);
+}
 const RECENT_TTL_MS = 5_000;
 
 interface RecentSelection {
@@ -32,6 +37,8 @@ function buildPayload(selection: Selection): { payload: SelectionPayload; rect: 
   const rawText = selection.toString();
   const word = normalizeWhitespace(rawText);
   if (word.length < MIN_LENGTH || word.length > MAX_LENGTH) return null;
+  if (KOREAN.test(word)) return null;
+  if (!isEnglishWord(word)) return null;
 
   const range = selection.getRangeAt(0);
   if (!range) return null;

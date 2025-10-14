@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState, useContext, useRef } from "preact/hooks";
-            <a href='/words'><button>단어장 관리</button></a>
+
 import { fetchDueReviews, applySm2Review, getDatabase, exportSnapshot } from "@core";
 import { AuthContext } from "../auth/firebase";
 import { fetchUserWords, upsertSnapshotToFirestore, upsertReviewState } from "../db/firestore";
@@ -105,8 +105,7 @@ export function QuizPage() {
 
   // Support sign-out via query param (?logout=1) for extension quick action
   useEffect(() => {
-    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
-    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
+    // no-op
     try {
       const q = typeof location !== 'undefined' ? location.search : '';
       if (q && new URLSearchParams(q).get('logout') === '1') {
@@ -121,7 +120,7 @@ export function QuizPage() {
   // Handle action from extension: login gate → sync → action
   useEffect(() => {
     (async () => {
-      const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
+      // no-op
       const PENDING_SEL_KEY = 'CHECKVOCA_PENDING_SELECTION';
       const q = typeof location !== 'undefined' ? location.search : '';
       const params = new URLSearchParams(q);
@@ -154,6 +153,7 @@ export function QuizPage() {
         } catch {}
       } else if (action === 'importSnapshot') {
         try {
+          const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
           const raw = localStorage.getItem(PENDING_KEY);
           if (raw) {
             const data = JSON.parse(raw);
@@ -172,6 +172,7 @@ export function QuizPage() {
             const mod = await import('@core');
             await (mod as any).registerSelection(payload);
             localStorage.removeItem(PENDING_SEL_KEY);
+            window.dispatchEvent(new CustomEvent('checkvoca:selection-imported'));
             showToast('단어를 추가했습니다');
           }
         } catch {}
@@ -185,8 +186,7 @@ export function QuizPage() {
 
   // Load words with merge: local(due->recent) + cloud(unique)
   useEffect(() => {
-    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
-    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
+    // no-op
     (async () => {
       const due = (await fetchDueReviews()) as WordEntry[];
       let local = due;
@@ -209,8 +209,7 @@ export function QuizPage() {
 
   // Reload list after snapshot import
   useEffect(() => {
-    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
-    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
+    // no-op
     const handler = () => {
       (async () => {
         const due = (await fetchDueReviews()) as WordEntry[];
@@ -238,8 +237,7 @@ export function QuizPage() {
 
   // Auto cloud sync once after login (best-effort)
   useEffect(() => {
-    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
-    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
+    // no-op
     (async () => {
       if (!auth?.user || didSyncRef.current) return;
       try {
@@ -254,8 +252,6 @@ export function QuizPage() {
   }, [auth?.user?.uid]);
   // Best-effort enrichment for items without definitions
   useEffect(() => {
-    const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
-    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
     (async () => {
       const need = words.filter((w) => !w.definitions || w.definitions.length === 0).slice(0, 10);
       if (!need.length) return;
@@ -384,7 +380,7 @@ export function QuizPage() {
             진행 {index + 1} / {words.length}
           </strong>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <a href='/words'><button>단어장 관리</button></a>
+
             <span style={{ fontSize: 13 }}>{auth.user?.displayName}</span>
             <button onClick={() => auth?.signOut()}>로그아웃</button>
             <button onClick={() => location.reload()}>새로고침</button>
