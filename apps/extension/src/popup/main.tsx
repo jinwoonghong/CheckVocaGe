@@ -115,6 +115,8 @@ function App() {
   const [error, setError] = useState<string | undefined>();
   const [lastSavedWord, setLastSavedWord] = useState<string | undefined>();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [activation, setActivation] = useState<'any'|'ctrl'|'alt'|'shift'|'ctrl_shift'|'alt_shift'>('any');
 
   useEffect(() => {
     const loadRecent = async () => {
@@ -157,6 +159,26 @@ function App() {
     }
   }, []);
 
+  // Load current activation modifier for inline settings
+  useEffect(() => {
+    try {
+      const storage = getStorage();
+      storage?.get?.({ activationModifier: 'any' }, (items) => {
+        const v = String(items?.activationModifier || 'any');
+        if (['any','ctrl','alt','shift','ctrl_shift','alt_shift'].includes(v)) {
+          setActivation(v as typeof activation);
+        }
+      });
+    } catch { /* ignore */ }
+  }, []);
+
+  function saveSettings() {
+    try {
+      const storage = getStorage();
+      storage?.set?.({ activationModifier: activation }, () => void 0);
+    } catch { /* ignore */ }
+  }
+
   return (
     <div class="wrap">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
@@ -164,11 +186,26 @@ function App() {
         <button
           class="secondary"
           style="background:#374151;"
-          onClick={() => {
-            try { chrome.runtime?.openOptionsPage?.(); } catch { /* noop */ }
-          }}
+          onClick={() => setShowSettings((v) => !v)}
         >환경설정</button>
       </div>
+      {showSettings && (
+        <div style="margin:8px 0 12px; padding:12px; border:1px solid rgba(255,255,255,0.12); border-radius:10px; background:#0b1220; color:#e5e7eb;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label for="activation" style="font-size:13px; color:#9ca3af; min-width:120px;">단어 팝업 활성화 키</label>
+            <select id="activation" value={activation} onChange={(e: any) => setActivation(e.currentTarget.value)} style="flex:1; padding:8px; border-radius:8px; background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,0.15);">
+              <option value="any">항상(기본)</option>
+              <option value="ctrl">Ctrl 누른 상태</option>
+              <option value="alt">Alt 누른 상태</option>
+              <option value="shift">Shift 누른 상태</option>
+              <option value="ctrl_shift">Ctrl + Shift</option>
+              <option value="alt_shift">Alt + Shift</option>
+            </select>
+            <button class="secondary" onClick={saveSettings}>저장</button>
+          </div>
+          <div style="margin-top:6px; font-size:12px; color:#9ca3af;">웹 베이스 URL 옵션은 제거했습니다. 기본 배포 주소를 자동으로 사용합니다.</div>
+        </div>
+      )}
       <div style="margin:8px 0 12px; display:grid; grid-template-columns:1fr auto; gap:8px;">
         <input
           type="text"
