@@ -1,5 +1,6 @@
 ﻿import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
 import { AuthContext } from '../auth/firebase';
+import { useCallback } from 'preact/hooks';
 import { getDatabase } from '@core';
 import {
   fetchUserWords,
@@ -33,10 +34,10 @@ export function WordsPage() {
       const set = new Set<string>(Array.isArray(cur) ? cur : []);
       ids.forEach((id) => set.add(id));
       localStorage.setItem(DELETION_QUEUE_KEY, JSON.stringify(Array.from(set)));
-    } catch {}
+    } catch { /* ignore */ }
   }
 
-  async function processDeletionQueue(): Promise<string[]> {
+  const processDeletionQueue = useCallback(async (): Promise<string[]> => {
     if (!auth?.user) return [];
     try {
       const arr = JSON.parse(localStorage.getItem(DELETION_QUEUE_KEY) || '[]');
@@ -45,14 +46,14 @@ export function WordsPage() {
       for (const id of ids) {
         try {
           await deleteWord(auth.user.uid, id);
-        } catch {}
+        } catch { /* ignore */ }
       }
       localStorage.removeItem(DELETION_QUEUE_KEY);
       return ids;
     } catch {
       return [];
     }
-  }
+  }, [auth?.user?.uid])
 
   const [tagInput, setTagInput] = useState<string>('');
   const [filters, setFilters] = useState<SavedFilter[]>([]);
@@ -61,10 +62,10 @@ export function WordsPage() {
       if (auth?.user) {
         try {
           setFilters(await getSavedFilters(auth.user.uid));
-        } catch {}
+        } catch { /* ignore */ }
       }
     })();
-  }, [auth?.user?.uid]);
+  }, [auth]);
 
   // Refresh list when selection/snapshot is imported on /quiz
   useEffect(() => {
@@ -78,13 +79,13 @@ export function WordsPage() {
           const append = (local as WordRow[]).filter((w) => !seen.has(w.id));
           setRows([...cloud, ...append]);
           return;
-        } catch {}
+        } catch { /* ignore */ }
       }
       try {
         const db = getDatabase();
         const local = (await db.wordEntries.orderBy('createdAt').reverse().toArray()) as any[];
         setRows(local as WordRow[]);
-      } catch {}
+      } catch { /* ignore */ }
     };
     const handler = () => { void reload(); };
     window.addEventListener('checkvoca:selection-imported', handler);
@@ -93,7 +94,7 @@ export function WordsPage() {
       window.removeEventListener('checkvoca:selection-imported', handler);
       window.removeEventListener('checkvoca:snapshot-imported', handler);
     };
-  }, [auth?.user?.uid]);
+  }, [auth]);
 
   // Apply pending deletions once logged in, then refresh list locally
   useEffect(() => {
@@ -102,7 +103,7 @@ export function WordsPage() {
       const deleted = await processDeletionQueue();
       if (deleted && deleted.length) setRows((prev) => prev.filter((r) => !deleted.includes(r.id)));
     })();
-  }, [auth?.user?.uid]);
+  }, [auth, processDeletionQueue]);
 
   const saveCurrentFilter = async () => {
     if (!auth?.user) return;
@@ -120,7 +121,7 @@ export function WordsPage() {
     setFilters(next);
     try {
       await setSavedFilters(auth.user.uid, next);
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   const applyFilter = (f: SavedFilter) => {
@@ -152,7 +153,7 @@ export function WordsPage() {
           await db.wordEntries.update(id, { tags: next });
         }
       }
-    } catch {}
+    } catch { /* ignore */ }
     setTagInput('');
   };
 
@@ -170,7 +171,7 @@ export function WordsPage() {
           const pref = await getQuizPreference(auth.user.uid);
           if (pref) setMode(pref);
           return;
-        } catch {}
+        } catch { /* ignore */ }
       }
       const db = getDatabase();
       const local = (await db.wordEntries
@@ -206,14 +207,14 @@ export function WordsPage() {
         const db = getDatabase();
         await db.wordEntries.update(id, { includeInQuiz: value } as any);
       }
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   const saveMode = async (m: QuizMode) => {
     setMode(m);
     try {
       if (auth?.user) await setQuizPreference(auth.user.uid, m);
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   const setSelectionAll = (checked: boolean) => {
@@ -247,7 +248,7 @@ export function WordsPage() {
           const db = getDatabase();
           for (const id of ids) await db.wordEntries.update(id, { includeInQuiz: include } as any);
         }
-      } catch {}
+      } catch { /* ignore */ }
     });
 
   const bulkDeleteSelected = async () =>
@@ -265,7 +266,7 @@ export function WordsPage() {
         } else {
           enqueueDeletion(ids);
         }
-      } catch {}
+      } catch { /* ignore */ }
       setSelected({});
     });
 
@@ -284,7 +285,7 @@ export function WordsPage() {
         } else {
           enqueueDeletion(ids);
         }
-      } catch {}
+      } catch { /* ignore */ }
       setSelected({});
     });
 
@@ -300,7 +301,7 @@ export function WordsPage() {
         await db.reviewStates.delete(id);
         enqueueDeletion([id]);
       }
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   return (

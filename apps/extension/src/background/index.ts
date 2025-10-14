@@ -210,9 +210,9 @@ chrome.runtime?.onMessage?.addListener((message: unknown, _sender, sendResponse)
             try { return base ? new URL(base).origin : 'https://checkvocage.web.app'; } catch { return 'https://checkvocage.web.app'; }
           })();
           if (origin === expectedOrigin) {
-            try { chrome.storage?.local?.set({ webAuthStatus: hasAuth }); } catch {}
+            try { chrome.storage?.local?.set({ webAuthStatus: hasAuth }); } catch { /* ignore */ }
           }
-        } catch {}
+        } catch { /* ignore */ }
         sendResponse({ status: 'ok' });
         return;
       }

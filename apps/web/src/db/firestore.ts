@@ -27,7 +27,7 @@ function reviewsCol(uid: string) {
 }
 
 function toSafeId(id: string): string {
-  return String(id || '').replace(/[\/#?\[\]]/g, '_');
+  return String(id || '').replace(/[/#?[\]]/g, '_');
 }
 
 function prune(value: any): any {

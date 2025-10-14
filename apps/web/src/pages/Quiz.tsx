@@ -56,9 +56,9 @@ async function fetchFromDictionaryApi(
 function useBootstrapFromSnapshot(): void {
   useEffect(() => {
     const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
-    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch {} };
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch { /* ignore */ } };
     const PENDING_SEL_KEY = 'CHECKVOCA_PENDING_SELECTION';
-    const storePendingSelection = (data: any) => { try { localStorage.setItem(PENDING_SEL_KEY, JSON.stringify(data)); } catch {} };
+    const storePendingSelection = (data: any) => { try { localStorage.setItem(PENDING_SEL_KEY, JSON.stringify(data)); } catch { /* ignore */ } };
     const hash = typeof location !== "undefined" ? location.hash : "";
     const m = hash.match(/snapshot=([^&]+)/);
     if (m) {
@@ -114,7 +114,7 @@ export function QuizPage() {
           history.replaceState({}, '', clean);
         });
       }
-    } catch {}
+    } catch { /* ignore */ }
   }, [auth?.user]);
 
   // Handle action from extension: login gate → sync → action
@@ -144,13 +144,13 @@ export function QuizPage() {
       try {
         const snapshot = await exportSnapshot();
         await upsertSnapshotToFirestore(auth.user.uid, snapshot);
-      } catch {}
+      } catch { /* ignore */ }
 
       if (action === 'copyLink') {
         try {
           await navigator.clipboard.writeText(`${location.origin}/quiz`);
           showToast('퀴즈 링크를 복사했어요');
-        } catch {}
+        } catch { /* ignore */ }
       } else if (action === 'importSnapshot') {
         try {
           const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
@@ -163,7 +163,7 @@ export function QuizPage() {
             window.dispatchEvent(new CustomEvent('checkvoca:snapshot-imported'));
             showToast('단어장을 가져와 동기화했습니다');
           }
-        } catch {}
+        } catch { /* ignore */ }
       } else if (action === 'importSelection') {
         try {
           const raw = localStorage.getItem(PENDING_SEL_KEY);
@@ -175,14 +175,14 @@ export function QuizPage() {
             window.dispatchEvent(new CustomEvent('checkvoca:selection-imported'));
             showToast('단어를 추가했습니다');
           }
-        } catch {}
+        } catch { /* ignore */ }
       }
 
       // Clean query
       const clean = location.pathname + (location.hash || '');
       history.replaceState({}, '', clean);
     })();
-  }, [auth?.user?.uid]);
+  }, [auth]);
 
   // Load words with merge: local(due->recent) + cloud(unique)
   useEffect(() => {
@@ -201,11 +201,11 @@ export function QuizPage() {
           const seen = new Set(local.map((w) => w.id));
           const append = cloudWords.filter((w) => !seen.has(w.id));
           merged = [...local, ...append];
-        } catch {}
+        } catch { /* ignore */ }
       }
       setWords(merged);
     })();
-  }, [auth?.user?.uid]);
+  }, [auth]);
 
   // Reload list after snapshot import
   useEffect(() => {
@@ -225,7 +225,7 @@ export function QuizPage() {
             const seen = new Set(local.map((w) => w.id));
             const append = cloudWords.filter((w) => !seen.has(w.id));
             merged = [...local, ...append];
-          } catch {}
+          } catch { /* ignore */ }
         }
         setWords(merged);
       })();
@@ -285,7 +285,7 @@ export function QuizPage() {
         const updated = await applySm2Review(card.id, g);
         if (auth?.user) await upsertReviewState(auth.user.uid, updated as any);
       }
-    } catch {}
+    } catch { /* ignore */ }
     next();
   };
 

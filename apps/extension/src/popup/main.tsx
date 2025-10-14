@@ -14,7 +14,7 @@ function getStorage(): chrome.storage.StorageArea | undefined {
 }
 
 function extractFirstEnglishWord(input: string): string | null {
-  const m = String(input || '').trim().match(/[A-Za-z][A-Za-z'\-]*/);
+  const m = String(input || '').trim().match(/[A-Za-z][A-Za-z'-]*/);
   return m ? m[0] : null;
 }
 
@@ -224,19 +224,19 @@ function App() {
                 });
               });
               setLastSavedWord(word);
-            } catch {}
+            } catch { /* ignore */ }
             // 2) Hand off to web to appear on words page (merge shows local as well)
             try {
               const key = `CHECKVOCA_SELECTION_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
               await new Promise<void>((resolve) => {
                 try { chrome.storage?.local?.set({ [key]: { word, context: '', url: location.origin, selectionRange: { startContainerPath: 'body[0]', startOffset: 0, endContainerPath: 'body[0]', endOffset: 0 }, timestamp: Date.now(), clientMeta: { title: document.title, language: navigator.language }, definitions: defs, phonetic, audioUrl } }, () => resolve()); } catch { resolve(); }
               });
-              try { chrome.storage?.local?.set({ CHECKVOCA_PENDING_SELECTION_KEY: key }, () => void 0); } catch {}
+              try { chrome.storage?.local?.set({ CHECKVOCA_PENDING_SELECTION_KEY: key }, () => void 0); } catch { /* ignore */ }
               const base = await getWebBaseUrl();
               if (isLoggedIn) {
                 chrome.tabs?.create?.({ url: `${base}/quiz?action=importSelection&selectionKey=${encodeURIComponent(key)}` });
               }
-            } catch {}
+            } catch { /* ignore */ }
           }}>단어 저장</button>
           {lastSavedWord && <small style="color:#9ca3af; align-self:center;">저장됨: {lastSavedWord}</small>}
         </div>
@@ -272,7 +272,7 @@ function App() {
               const k = String(items?.CHECKVOCA_PENDING_SELECTION_KEY || '').trim();
               if (k && !isLoggedIn) target = `${base}/quiz?action=importSelection&selectionKey=${encodeURIComponent(k)}`;
               chrome.tabs?.create?.({ url: isLoggedIn ? `${base}/quiz?logout=1` : target });
-              if (k && !isLoggedIn) try { chrome.storage?.local?.remove?.('CHECKVOCA_PENDING_SELECTION_KEY'); } catch {}
+              if (k && !isLoggedIn) try { chrome.storage?.local?.remove?.('CHECKVOCA_PENDING_SELECTION_KEY'); } catch { /* ignore */ }
             });
           } catch {
             chrome.tabs?.create?.({ url: isLoggedIn ? `${base}/quiz?logout=1` : `${base}/quiz` });

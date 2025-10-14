@@ -9,7 +9,7 @@ const MAX_LENGTH = 120;
 const KOREAN = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/; // Jamo + Hangul Compatibility + Syllables
 
 function isEnglishWord(s: string): boolean {
-  return /^[A-Za-z](?:[A-Za-z'\-]*[A-Za-z])?$/.test(s);
+  return /^[A-Za-z](?:[A-Za-z'-]*[A-Za-z])?$/.test(s);
 }
 const RECENT_TTL_MS = 5_000;
 
