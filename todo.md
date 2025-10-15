@@ -1,40 +1,29 @@
-# TODO (요약)
+# TODO
 
-## 완료 (v1.2.2)
-- 팝업 내부 결과 표시(정의/IPA/발음), 로딩/오류 UI 추가
-- 팝업 ‘단어 저장’ 버튼: 확장 DB 저장 + 웹 importSelection 핸드오프
-- 콘텐츠 스크립트의 `selectionKey` 처리로 선택 전달(postMessage)
-- 단어장 병합 로딩: 로그인 시 클라우드 + 로컬 동시 반영(삭제 후 재추가 즉시 표시)
-- 단어장 일괄 삭제 UX 분리: 삭제(선택 N), 삭제(필터 M)
-- 삭제 동기화: 미로그인 삭제분을 로그인 시 클라우드에서도 일괄 삭제
-- Vite 프리셋 동적 import로 CJS/ESM 충돌 해결, BOM 제거
-- Firebase Hosting 배포 완료
+## 완료 (v1.2.3)
+- /words 로그인 필수 전환, Firestore 기준 목록 표시로 단순화
+- /words 삭제 즉시 Firestore 반영, 오프라인 삭제 큐 제거
+- /quiz 동기화 완료 배너 + "단어장 보기" 링크 노출
+- 확장 팝업 내 인라인 설정(활성화 키) 추가, Web Base URL 항목 UI 제거
+- manifest의 `options_page`/options 빌드 제거(탭형 옵션 완전 제거)
+- /words 한글 텍스트 깨짐 정리 및 라벨/문구 개선
+- Lint/Typecheck 정리(no-empty, 이스케이프, 훅 의존성 정리)
+- CI 안정화: web Vitest 플러그인 제거, package.json BOM 제거
 
-## 완료 (v1.2.1)
-- 팝업 ‘단어검색’ 입력/버튼 추가, 현재 탭에 툴팁 표시
-- 문서 인코딩(UTF-8) 정리: CHANGELOG/TODO
+## 다음 (v1.2.4)
+- 번들 최적화: /web 청크 분할로 500 kB 경고 해소
+- ESLint 경고 제거(남아있는 any 타입 점진적 제거)
+- /quiz 동기화 배너 스타일 및 위치 개선
+- 삭제 Undo(되돌리기) 옵션 검토
+- 확장 옵션 소스 정리(미사용 options/* 폴더 제거 여부 결정)
+- i18n/문구 다듬기(영문/국문 병기 정리)
 
-## 진행 중 (v1.2.x)
-- [ ] 웹 타입체크/빌드 정리(Quiz.tsx 잔여 경고/중복 변수 제거)
-- [ ] 단어 저장 시(웹 importSelection) 로그인 상태면 클라우드에도 즉시 upsert
-- [ ] 삭제 Undo(되돌리기) 토스트 + 작업 로그
-- [ ] 단어장 성능: 페이징/가상 스크롤, 선택 반전
-- [ ] 확장 팝업: 최근 검색 기록/재조회, 즐겨찾기 토글
-- [ ] GH Actions 배포 워크플로우 개선(프리뷰 채널, 태그 자동 배포)
+## 인프라/CI
+- CI(Node 20.19+ 고정, Corepack pnpm 사용) 유지
+- Firebase Hosting 프로덕션 배포 워크플로 유지
+- .firebaserc 프로젝트/대상 점검 및 문서화
 
-## 운영/배포
-- [x] CI: lint/typecheck/test 워크플로우(.github/workflows/ci.yml)
-- [x] Hosting 배포 워크플로우 초안(.github/workflows/hosting.yml)
-- [x] Firestore Rules 배포(최소권한)
-- [ ] .firebaserc 프로젝트 갱신 및 스크립트 정리
-- [ ] 릴리즈 채널(Preview URL) + 태그 배포(v*)
-
-## 개발 메모
-- 동기화 정책
-  - 로그인 직후 1회 자동 동기화 + 수동 동기화 버튼
-  - 미로그인 삭제는 큐에 기록, 로그인 시 클라우드 일괄 삭제
-  - 선택 핸드오프: storage 키 + postMessage로 안전 전달 후 즉시 삭제
-- 보안/설정
-  - Firestore Rules 최소권한 적용, 문서 ID 표준화, undefined 필드 정리
-  - API Key 제한 및 Authorized domains 최적화
+## 참고 플로우
+- 동기화: 확장 로그인 → 팝업 "퀴즈 시작(모바일웹)" → /quiz 진입 시 로컬→클라우드 동기화
+- 단어장: /words는 로그인 후 클라우드 목록 표시, 삭제 즉시 반영
 
