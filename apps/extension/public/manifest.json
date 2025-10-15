@@ -7,7 +7,6 @@
     "default_title": "WebVoca",
     "default_popup": "src/popup/index.html"
   },
-  "options_page": "src/options/index.html",
   "permissions": [
     "storage",
     "declarativeNetRequest",

@@ -96,6 +96,7 @@ export function QuizPage() {
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
   const didSyncRef = useRef(false);
+  const [justSynced, setJustSynced] = useState(false);
 
   function showToast(message: string, durationMs = 2200) {
     setToast(message);
@@ -144,6 +145,10 @@ export function QuizPage() {
       try {
         const snapshot = await exportSnapshot();
         await upsertSnapshotToFirestore(auth.user.uid, snapshot);
+        if (action === 'open') {
+          setJustSynced(true);
+          showToast('클라우드 동기화 완료');
+        }
       } catch { /* ignore */ }
 
       if (action === 'copyLink') {
@@ -304,8 +309,12 @@ export function QuizPage() {
       <div style={{ padding: 16, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" }}>
         <h2>퀴즈</h2>
         <p>단어장이 비어 있습니다. 스냅샷을 전달하거나, 확장에서 데이터를 가져오세요.</p>
+        {justSynced && (
+          <div style={{ margin: '8px 0', fontSize: 13, color: '#10b981' }}>동기화가 완료되었습니다.</div>
+        )}
         <div style={{ marginTop: 8 }}>
           <button onClick={() => auth?.signOut()}>로그아웃</button>
+          <a href="/words" style={{ marginLeft: 8 }}><button>단어장 보기</button></a>
         </div>
       </div>
     );
