@@ -4,7 +4,7 @@
 */
 import { getDatabase } from '@core';
 import { initProHighlighter, type HighlighterOptions } from './pro-highlighter';
-import { buildFamiliarityMap } from '@core';
+import { buildFamiliarityMap, isDomainAllowed } from '@core';
 
 type Density = 'low' | 'medium' | 'high';
 
@@ -52,7 +52,11 @@ async function getFamiliarity(): Promise<Record<string, number>> {
 export async function maybeInitProHighlighter(): Promise<void> {
   const settings = await loadSettings();
   if (!settings.proHighlightEnabled) return;
+  // Domain filter check
+  try {
+    const host = location.hostname;
+    if (!isDomainAllowed(host, settings)) return;
+  } catch { /* ignore and proceed */ }
   const opts: HighlighterOptions = { density: settings.proHighlightDensity } as any;
   await initProHighlighter(getUserWords, getFamiliarity, opts);
 }
-

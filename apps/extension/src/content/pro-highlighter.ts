@@ -53,6 +53,7 @@ function ensureStyleInjected(doc: Document): void {
 
 export interface HighlighterOptions {
   density?: Density;
+  observeMutations?: boolean; // if true, observe new nodes and re-apply selectively
 }
 
 export async function initProHighlighter(getUserWords: () => Promise<string[]>, getFamiliarity: () => Promise<FamiliarityMap>, opts: HighlighterOptions = {}): Promise<void> {
@@ -108,5 +109,23 @@ export async function initProHighlighter(getUserWords: () => Promise<string[]>, 
       i = matched.end;
     }
     parent.replaceChild(frag, node);
+  }
+
+  // Dispatch a summary event for future UI hooks (2.0.0)
+  try {
+    const detail = { highlighted: set.size, totalTerms: page.totalTerms };
+    window.dispatchEvent(new CustomEvent('checkvoca:pro-highlighted', { detail }));
+  } catch { /* ignore */ }
+
+  if (opts.observeMutations) {
+    try {
+      const obs = new MutationObserver(() => {
+        // For simplicity, re-run lightly with low density on dynamic updates.
+        // A smarter incremental approach can be added in 2.0.0.
+        initProHighlighter(getUserWords, getFamiliarity, { density, observeMutations: false })
+          .catch(() => void 0);
+      });
+      obs.observe(doc.body, { childList: true, subtree: true, characterData: true });
+    } catch { /* ignore */ }
   }
 }
