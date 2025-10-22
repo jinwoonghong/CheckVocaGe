@@ -1,5 +1,6 @@
-﻿/// <reference types="chrome" />
+/// <reference types="chrome" />
 import { render } from 'preact';
+import type { JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { getDatabase, exportSnapshot, subscribeCacheEvent } from '@core';
 
@@ -8,6 +9,7 @@ const ENV_BASE = (import.meta as ImportMeta & { env?: { VITE_WEB_BASE?: string }
   | undefined;
 
 type WordEntry = { id: string; word: string; context?: string };
+type ActivationModifier = 'any'|'ctrl'|'alt'|'shift'|'ctrl_shift'|'alt_shift';
 
 function getStorage(): chrome.storage.StorageArea | undefined {
   return chrome.storage?.sync ?? chrome.storage?.local;
@@ -18,14 +20,13 @@ function extractFirstEnglishWord(input: string): string | null {
   return m ? m[0] : null;
 }
 
-// removed unused: sendSearchToActiveTab
-
 type LookupResult = { definitions: string[]; phonetic?: string; audioUrl?: string };
 
+type BgLookupResponse = { status?: 'ok' | 'error'; message?: string; definitions?: string[]; phonetic?: string; audioUrl?: string };
 async function lookupInBackground(word: string): Promise<LookupResult> {
   return new Promise((resolve, reject) => {
     try {
-      chrome.runtime?.sendMessage?.({ type: 'CHECKVOCA_LOOKUP', word }, (resp?: any) => {
+      chrome.runtime?.sendMessage?.({ type: 'CHECKVOCA_LOOKUP', word }, (resp?: BgLookupResponse) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
           return;
@@ -100,10 +101,6 @@ async function sendSnapshotToWeb(): Promise<void> {
   }
 }
 
-// removed unused: openLogin
-
-// removed unused: openLogout
-
 function App() {
   const [words, setWords] = useState<WordEntry[]>([]);
   const [adLeft, setAdLeft] = useState<number>(0);
@@ -116,7 +113,11 @@ function App() {
   const [lastSavedWord, setLastSavedWord] = useState<string | undefined>();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [activation, setActivation] = useState<'any'|'ctrl'|'alt'|'shift'|'ctrl_shift'|'alt_shift'>('any');
+  const [activation, setActivation] = useState<ActivationModifier>('any');
+  const [webEmail, setWebEmail] = useState<string | undefined>();
+  const [webUid, setWebUid] = useState<string | undefined>();
+  const [webBaseUrlInput, setWebBaseUrlInput] = useState<string>('');
+  const [webBaseUrlError, setWebBaseUrlError] = useState<string | undefined>();
 
   useEffect(() => {
     const loadRecent = async () => {
@@ -126,9 +127,9 @@ function App() {
           .orderBy('createdAt')
           .reverse()
           .limit(300)
-          .toArray()) as any[];
+          .toArray()) as Array<{ id: string; word: string; context?: string; updatedAt?: number }>;
         rows.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
-        const filtered = rows.filter((r: any) => /^[A-Za-z]/.test(String(r?.word || '')));
+        const filtered = rows.filter((r) => /^[A-Za-z]/.test(String((r as { word?: string })?.word || '')));
         setWords(filtered.slice(0, 5) as WordEntry[]);
       } catch {
         setWords([]);
@@ -146,14 +147,29 @@ function App() {
   // Observe web auth status
   useEffect(() => {
     try {
-      chrome.storage?.local?.get?.({ webAuthStatus: false }, (items) => setIsLoggedIn(Boolean(items?.webAuthStatus)));
+      chrome.storage?.local?.get?.({ webAuthStatus: false, webAuthEmail: '', webAuthUid: '' }, (items) => {
+        setIsLoggedIn(Boolean(items?.webAuthStatus));
+        const email = String(items?.webAuthEmail || '').trim();
+        const uid = String(items?.webAuthUid || '').trim();
+        setWebEmail(email || undefined);
+        setWebUid(uid || undefined);
+      });
       const listener = (changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
-        if (area === 'local' && Object.prototype.hasOwnProperty.call(changes, 'webAuthStatus')) {
+        if (area !== 'local') return;
+        if (Object.prototype.hasOwnProperty.call(changes, 'webAuthStatus')) {
           setIsLoggedIn(Boolean(changes.webAuthStatus.newValue));
+        }
+        if (Object.prototype.hasOwnProperty.call(changes, 'webAuthEmail')) {
+          const v = String(changes.webAuthEmail.newValue || '').trim();
+          setWebEmail(v || undefined);
+        }
+        if (Object.prototype.hasOwnProperty.call(changes, 'webAuthUid')) {
+          const v = String(changes.webAuthUid.newValue || '').trim();
+          setWebUid(v || undefined);
         }
       };
       chrome.storage?.onChanged?.addListener(listener);
-      return () => chrome.storage?.onChanged?.removeListener?.(listener as any);
+      return () => chrome.storage?.onChanged?.removeListener?.(listener);
     } catch {
       return () => undefined;
     }
@@ -179,10 +195,45 @@ function App() {
     } catch { /* ignore */ }
   }
 
+  // Load current Web Base URL into settings input
+  useEffect(() => {
+    (async () => {
+      try {
+        const storage = getStorage();
+        storage?.get?.({ webBaseUrl: '' }, (items) => {
+          const v = String(items?.webBaseUrl || '').trim();
+          setWebBaseUrlInput(v || ENV_BASE || 'http://localhost:5173');
+        });
+      } catch {
+        setWebBaseUrlInput(ENV_BASE || 'http://localhost:5173');
+      }
+    })();
+  }, []);
+
+  function validateAndSaveWebBaseUrl() {
+    const raw = String(webBaseUrlInput || '').trim();
+    setWebBaseUrlError(undefined);
+    if (!raw) {
+      setWebBaseUrlError('빈 URL 입니다.');
+      return;
+    }
+    try {
+      const u = new URL(raw);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+        setWebBaseUrlError('http(s) URL 만 지원합니다.');
+        return;
+      }
+      const storage = getStorage();
+      storage?.set?.({ webBaseUrl: u.toString() }, () => void 0);
+    } catch {
+      setWebBaseUrlError('유효한 URL 이 아닙니다.');
+    }
+  }
+
   return (
-    <div class="wrap">
+    <div class="wrap" style="padding:10px; width:320px; color:#e5e7eb; background:#0b1220;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-        <h1 style={{ margin: 0 }}>WebVoca</h1>
+        <h1 style={{ margin: 0, fontSize: 16 }}>WebVoca</h1>
         <button
           class="secondary"
           style="background:#374151;"
@@ -192,11 +243,11 @@ function App() {
       {showSettings && (
         <div style="margin:8px 0 12px; padding:12px; border:1px solid rgba(255,255,255,0.12); border-radius:10px; background:#0b1220; color:#e5e7eb;">
           <div style="display:flex; gap:8px; align-items:center;">
-            <label for="activation" style="font-size:13px; color:#9ca3af; min-width:120px;">단어 팝업 활성화 키</label>
+            <label for="activation" style="font-size:13px; color:#9ca3af; min-width:120px;">단어 툴팁 활성화 키</label>
             <select
               id="activation"
               value={activation}
-              onChange={(e: any) => setActivation(e.currentTarget.value)}
+              onChange={(e: JSX.TargetedEvent<HTMLSelectElement, Event>) => setActivation(e.currentTarget.value as ActivationModifier)}
               style="flex:1; height:36px; padding:6px 8px; border-radius:8px; background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,0.15);"
             >
               <option value="any">항상(기본)</option>
@@ -214,8 +265,33 @@ function App() {
               저장
             </button>
           </div>
+          <div style="display:flex; gap:8px; align-items:center; margin-top:10px;">
+            <label for="webBaseUrl" style="font-size:13px; color:#9ca3af; min-width:120px;">Web Base URL</label>
+            <input
+              id="webBaseUrl"
+              type="text"
+              value={webBaseUrlInput}
+              onInput={(e: JSX.TargetedEvent<HTMLInputElement, Event>) => setWebBaseUrlInput(e.currentTarget.value)}
+              placeholder="https://checkvocage.web.app"
+              style="flex:1; height:36px; padding:6px 8px; border-radius:8px; background:#0b1220; color:#e5e7eb; border:1px solid rgba(255,255,255,0.15);"
+            />
+            <button
+              class="secondary"
+              onClick={validateAndSaveWebBaseUrl}
+              style="white-space:nowrap; min-width:64px; height:36px; padding:6px 10px; border-radius:8px;"
+            >저장</button>
+            <button
+              class="secondary"
+              onClick={async () => { const base = await getWebBaseUrl(); chrome.tabs?.create?.({ url: base }); }}
+              style="white-space:nowrap; min-width:64px; height:36px; padding:6px 10px; border-radius:8px;"
+            >열기</button>
+          </div>
+          {webBaseUrlError && (
+            <div style="margin-top:6px; font-size:12px; color:#f87171;">{webBaseUrlError}</div>
+          )}
         </div>
       )}
+
       <div style="margin:8px 0 12px; display:grid; grid-template-columns:1fr auto; gap:8px;">
         <input
           type="text"
@@ -229,7 +305,7 @@ function App() {
               setLoading(true); setError(undefined); setDefs([]); setPhonetic(undefined); setAudioUrl(undefined);
               lookupInBackground(word)
                 .then((r) => { setDefs(r.definitions || []); setPhonetic(r.phonetic); setAudioUrl(r.audioUrl); })
-                .catch(() => setError('정의를 불러오지 못했습니다.'))
+                .catch(() => setError('정의를 가져오지 못했습니다.'))
                 .finally(() => setLoading(false));
             }
           }}
@@ -241,19 +317,24 @@ function App() {
           setLoading(true); setError(undefined); setDefs([]); setPhonetic(undefined); setAudioUrl(undefined);
           lookupInBackground(word)
             .then((r) => { setDefs(r.definitions || []); setPhonetic(r.phonetic); setAudioUrl(r.audioUrl); })
-            .catch(() => setError('정의를 불러오지 못했습니다.'))
+            .catch(() => setError('정의를 가져오지 못했습니다.'))
             .finally(() => setLoading(false));
         }}>단어검색</button>
       </div>
+
       {(defs.length > 0 || phonetic || audioUrl) && (
         <div style="display:flex; gap:8px; margin-bottom:8px;">
-          <button class="secondary" onClick={async () => {
-            const word = extractFirstEnglishWord(query);
-            if (!word) return;
-            setLastSavedWord(undefined);
-            // 1) Save locally via background (extension DB)
-            try {
-              const payload: any = {
+            <button class="secondary" onClick={async () => {
+              const word = extractFirstEnglishWord(query);
+              if (!word) return;
+              setLastSavedWord(undefined);
+              // 1) Save locally via background (extension DB)
+              try {
+              const payload: {
+                word: string; context: string; url: string; selectionRange: { startContainerPath: string; startOffset: number; endContainerPath: string; endOffset: number };
+                timestamp: number; clientMeta: { title: string; language: string };
+                definitions: string[]; phonetic?: string; audioUrl?: string;
+              } = {
                 word,
                 context: '',
                 url: 'chrome-extension://popup',
@@ -265,14 +346,14 @@ function App() {
                 audioUrl,
               };
               await new Promise<void>((resolve, reject) => {
-                chrome.runtime?.sendMessage?.({ type: 'CHECKVOCA_SELECTION', payload }, (resp?: any) => {
+                chrome.runtime?.sendMessage?.({ type: 'CHECKVOCA_SELECTION', payload }, (resp?: { status?: string; message?: string }) => {
                   if (chrome.runtime.lastError || resp?.status === 'error') reject(new Error(chrome.runtime.lastError?.message || resp?.message || 'save failed'));
                   else resolve();
                 });
               });
               setLastSavedWord(word);
             } catch { /* ignore */ }
-            // 2) Hand off to web to appear on words page (merge shows local as well)
+            // 2) Optional handoff to web
             try {
               const key = `CHECKVOCA_SELECTION_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
               await new Promise<void>((resolve) => {
@@ -285,9 +366,10 @@ function App() {
               }
             } catch { /* ignore */ }
           }}>단어 저장</button>
-          {lastSavedWord && <small style="color:#9ca3af; align-self:center;">저장됨: {lastSavedWord}</small>}
+          {lastSavedWord && <small style="color:#9ca3af; align-self:center;">마지막: {lastSavedWord}</small>}
         </div>
       )}
+
       {(loading || error || defs.length > 0) && (
         <div style="margin: 10px 0 14px; padding:12px; border:1px solid rgba(255,255,255,0.12); border-radius:10px; background:#0b1220;">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
@@ -297,9 +379,9 @@ function App() {
               style="margin-left:auto; padding:4px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:transparent; color:#e5e7eb;"
               disabled={!audioUrl}
               onClick={() => { if (audioUrl) new Audio(audioUrl).play().catch(() => {}); }}
-            >발음</button>
+            >재생</button>
           </div>
-          {loading && <div style="color:#93a1ff;">불러오는 중...</div>}
+          {loading && <div style="color:#93a1ff;">로딩 중...</div>}
           {error && <div style="color:#f87171;">{error}</div>}
           {!loading && !error && defs.length > 0 && (
             <ul style="margin:6px 0; padding-left:16px;">
@@ -310,22 +392,23 @@ function App() {
             <div style="color:#f87171;">정의를 찾지 못했습니다.</div>
           )}
         </div>
-      )}      <div class="auth" style="display:flex; gap:8px; margin: 6px 0 10px;">
-        <button class="secondary" onClick={async () => {
-          const base = await getWebBaseUrl();
-          let target = `${base}/quiz`;
-          try {
-            chrome.storage?.local?.get?.(["CHECKVOCA_PENDING_SELECTION_KEY"], (items) => {
-              const k = String(items?.CHECKVOCA_PENDING_SELECTION_KEY || '').trim();
-              if (k && !isLoggedIn) target = `${base}/quiz?action=importSelection&selectionKey=${encodeURIComponent(k)}`;
-              chrome.tabs?.create?.({ url: isLoggedIn ? `${base}/quiz?logout=1` : target });
-              if (k && !isLoggedIn) try { chrome.storage?.local?.remove?.('CHECKVOCA_PENDING_SELECTION_KEY'); } catch { /* ignore */ }
-            });
-          } catch {
-            chrome.tabs?.create?.({ url: isLoggedIn ? `${base}/quiz?logout=1` : `${base}/quiz` });
-          }
-        }}>{isLoggedIn ? '로그아웃(모바일웹)' : '로그인(모바일웹)'}</button>
+      )}
+
+      <div class="auth" style="display:flex; gap:8px; margin: 6px 0 10px; align-items:center;">
+        {isLoggedIn ? (
+          <>
+            <span style="font-size:13px; color:#9ca3af;">{webEmail || (webUid ? `UID:${webUid.slice(0,6)}…` : '로그인됨')}</span>
+            <button class="secondary" onClick={async () => { const base = await getWebBaseUrl(); chrome.tabs?.create?.({ url: `${base}/quiz?logout=1` }); }}>로그아웃</button>
+          </>
+        ) : (
+          <button class="secondary" onClick={async () => { const base = await getWebBaseUrl(); chrome.tabs?.create?.({ url: `${base}/quiz` }); }}>로그인하기</button>
+        )}
       </div>
+
+      <div style="margin: 0 0 8px;">
+        <button class="secondary" onClick={async () => { const base = await getWebBaseUrl(); chrome.tabs?.create?.({ url: `${base}/words` }); }}>단어장 관리</button>
+      </div>
+
       <div style="margin-bottom:10px;">
         <small>최근 조회 단어</small>
         <ul style="maxHeight:180px;overflow:auto;margin:6px 0;padding-left:16px;">
@@ -335,6 +418,7 @@ function App() {
           ))}
         </ul>
       </div>
+
       <div class="actions" style="display:grid;gap:8px;">
         <button onClick={openQuiz}>퀴즈 시작(모바일웹)</button>
         <button class="secondary" onClick={copyLink}>퀴즈 링크 복사</button>
@@ -353,7 +437,6 @@ function App() {
                 }
                 return n - 1;
               });
-              return undefined as any;
             }, 1000);
           }}
         >
@@ -374,7 +457,3 @@ function App() {
 }
 
 render(<App />, document.getElementById('root')!);
-
-
-
-

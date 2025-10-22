@@ -1,9 +1,9 @@
-import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { createContext } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 
-const firebaseConfig = {
+const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -12,7 +12,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp | null = null;
 export function getApp(): FirebaseApp {
-  if (!app) app = initializeApp(firebaseConfig as any);
+  if (!app) app = initializeApp(firebaseConfig);
   return app!;
 }
 
@@ -38,14 +38,20 @@ export function useProvideAuth(): AuthContextValue {
       const provider = new GoogleAuthProvider();
       try {
         await signInWithPopup(auth, provider);
-      } catch (err: any) {
-        const code = err?.code || err?.message || '';
+      } catch (err: unknown) {
+        const code = (() => {
+          if (err && typeof err === 'object') {
+            const e = err as { code?: string; message?: string };
+            return e.code || e.message || '';
+          }
+          return '';
+        })();
         // Fallback when popup is blocked or not allowed on this browser
         if (String(code).includes('popup') || String(code).includes('operation-not-supported')) {
           await signInWithRedirect(auth, provider);
           return;
         }
-        throw err;
+        throw err as Error;
       }
     },
     async signOut() {
@@ -56,3 +62,4 @@ export function useProvideAuth(): AuthContextValue {
 
   return value;
 }
+

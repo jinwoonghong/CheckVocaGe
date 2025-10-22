@@ -1,7 +1,7 @@
 import { render } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { getDatabase, fetchDueReviews, applySm2Review } from '@core';
-type WordEntry = any;
+type WordEntry = { id: string; word: string; context?: string };
 
 function useWords(): WordEntry[] {
   const [words, setWords] = useState<WordEntry[]>([]);

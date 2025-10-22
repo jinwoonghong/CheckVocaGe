@@ -13,9 +13,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20.19.x'
       - name: Enable Corepack
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+          pnpm -v
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Lint
@@ -24,4 +27,3 @@ jobs:
         run: pnpm -r typecheck
       - name: Test
         run: pnpm -r test
-

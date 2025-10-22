@@ -78,14 +78,15 @@ let activationModifier: ActivationModifier = 'any';
 
 function loadActivationModifier(): void {
   try {
-    const storage = (chrome as any)?.storage?.sync ?? (chrome as any)?.storage?.local;
-    storage?.get?.({ activationModifier: 'any' }, (items: any) => {
+    const c = (chrome as unknown) as { storage?: { sync?: chrome.storage.StorageArea; local?: chrome.storage.StorageArea; onChanged?: typeof chrome.storage.onChanged } };
+    const storage: chrome.storage.StorageArea | undefined = c.storage?.sync ?? c.storage?.local;
+    storage?.get?.({ activationModifier: 'any' }, (items: { activationModifier?: string }) => {
       const v = String(items?.activationModifier || 'any');
       activationModifier = (['any','ctrl','alt','shift','ctrl_shift','alt_shift'] as string[]).includes(v) ? (v as ActivationModifier) : 'any';
     });
-    (chrome as any)?.storage?.onChanged?.addListener?.((changes: any, area: string) => {
-      if ((area === 'sync' || area === 'local') && changes?.activationModifier) {
-        const nv = String(changes.activationModifier.newValue || 'any');
+    c.storage?.onChanged?.addListener?.((changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if ((area === 'sync' || area === 'local') && changes && Object.prototype.hasOwnProperty.call(changes, 'activationModifier')) {
+        const nv = String(changes.activationModifier?.newValue || 'any');
         activationModifier = (['any','ctrl','alt','shift','ctrl_shift','alt_shift'] as string[]).includes(nv) ? (nv as ActivationModifier) : 'any';
       }
     });
@@ -100,9 +101,9 @@ function modifiersMatch(ev?: MouseEvent | KeyboardEvent): boolean {
   const needShift = activationModifier === 'shift' || activationModifier === 'ctrl_shift' || activationModifier === 'alt_shift';
   if (activationModifier === 'any') return true;
   if (!ev) return false;
-  const okCtrl = !needCtrl || !!(ev as any).ctrlKey;
-  const okAlt = !needAlt || !!(ev as any).altKey;
-  const okShift = !needShift || !!(ev as any).shiftKey;
+  const okCtrl = !needCtrl || !!ev.ctrlKey;
+  const okAlt = !needAlt || !!ev.altKey;
+  const okShift = !needShift || !!ev.shiftKey;
   return okCtrl && okAlt && okShift;
 }
 

@@ -5,6 +5,7 @@ import {
   doc,
   setDoc,
   getDocs,
+  onSnapshot,
   query,
   orderBy,
   limit as qLimit,
@@ -30,13 +31,13 @@ function toSafeId(id: string): string {
   return String(id || '').replace(/[/#?[\]]/g, '_');
 }
 
-function prune(value: any): any {
+function prune(value: unknown): unknown {
   if (value === undefined) return undefined;
   if (value === null) return null;
-  if (Array.isArray(value)) return value.map((v) => prune(v)).filter((v) => v !== undefined);
+  if (Array.isArray(value)) return (value as unknown[]).map((v) => prune(v)).filter((v) => v !== undefined);
   if (typeof value === 'object') {
-    const out: Record<string, any> = {};
-    for (const [k, v] of Object.entries(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       const pv = prune(v);
       if (pv !== undefined) out[k] = pv;
     }
@@ -45,31 +46,50 @@ function prune(value: any): any {
   return value;
 }
 
-export async function upsertSnapshotToFirestore(uid: string, snapshot: any): Promise<void> {
-  const words: any[] = snapshot?.wordEntries ?? [];
-  const reviews: any[] = snapshot?.reviewStates ?? [];
+export interface SnapshotWord { id: string; [k: string]: unknown }
+export interface SnapshotReview { id: string; [k: string]: unknown }
+export interface LocalSnapshot { wordEntries?: SnapshotWord[]; reviewStates?: SnapshotReview[] }
+
+export async function upsertSnapshotToFirestore(uid: string, snapshot: LocalSnapshot): Promise<void> {
+  const words: SnapshotWord[] = (snapshot?.wordEntries ?? []) as SnapshotWord[];
+  const reviews: SnapshotReview[] = (snapshot?.reviewStates ?? []) as SnapshotReview[];
   for (const w of words) {
     const safeId = toSafeId(w.id);
     const ref = doc(wordsCol(uid), safeId);
-    await setDoc(ref, { ...prune(w), id: safeId, originalId: w.id }, { merge: true });
+    await setDoc(ref, { ...(prune(w) as Record<string, unknown>), id: safeId, originalId: w.id }, { merge: true });
   }
   for (const r of reviews) {
     const safeId = toSafeId(r.id);
     const ref = doc(reviewsCol(uid), safeId);
-    await setDoc(ref, { ...prune(r), id: safeId, originalId: r.id }, { merge: true });
+    await setDoc(ref, { ...(prune(r) as Record<string, unknown>), id: safeId, originalId: r.id }, { merge: true });
   }
 }
 
-export async function fetchUserWords(uid: string, limit = 50): Promise<any[]> {
+export interface CloudWordRow { id: string; word: string; context?: string; includeInQuiz?: boolean; [k: string]: unknown }
+export async function fetchUserWords(uid: string, limit = 50): Promise<CloudWordRow[]> {
   const q = query(wordsCol(uid), orderBy('createdAt', 'desc'), qLimit(limit));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) as CloudWordRow[];
 }
 
-export async function upsertReviewState(uid: string, state: any): Promise<void> {
-  const safeId = toSafeId(state.id);
+export function subscribeUserWords(
+  uid: string,
+  limit: number,
+  cb: (rows: CloudWordRow[]) => void,
+): () => void {
+  const q = query(wordsCol(uid), orderBy('createdAt', 'desc'), qLimit(limit));
+  const unsub = onSnapshot(q, (snap) => {
+    const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })) as CloudWordRow[];
+    cb(rows);
+  });
+  return unsub;
+}
+
+export interface ReviewState { id: string; [k: string]: unknown }
+export async function upsertReviewState(uid: string, state: ReviewState): Promise<void> {
+  const safeId = toSafeId(String(state.id));
   const ref = doc(reviewsCol(uid), safeId);
-  await setDoc(ref, { ...prune(state), id: safeId, originalId: state.id }, { merge: true });
+  await setDoc(ref, { ...(prune(state) as Record<string, unknown>), id: safeId, originalId: state.id }, { merge: true });
 }
 
 export async function setWordIncludeInQuiz(uid: string, wordId: string, include: boolean): Promise<void> {

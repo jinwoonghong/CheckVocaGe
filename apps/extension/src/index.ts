@@ -193,8 +193,29 @@ try {
   }
   // Report auth status to background for popup toggle
   try {
-    const hasAuth = Object.keys(localStorage || {}).some((k) => k.startsWith('firebase:authUser:'));
-    chrome.runtime?.sendMessage?.({ type: 'CHECKVOCA_AUTH_PING', origin: location.origin, hasAuth });
+    const keys = Object.keys(localStorage || {}).filter((k) => k.startsWith('firebase:authUser:'));
+    const hasAuth = keys.length > 0;
+    let uid: string | undefined;
+    let email: string | undefined;
+    for (const k of keys) {
+      try {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        const data = JSON.parse(raw) as unknown;
+        if (!uid && data && typeof data === 'object') {
+          const r = data as Record<string, unknown>;
+          if (typeof r.uid === 'string') uid = r.uid || undefined;
+        }
+        if (!email && data && typeof data === 'object') {
+          const r = data as Record<string, unknown>;
+          if (typeof r.email === 'string') email = r.email || undefined;
+        }
+        if (uid && email) break;
+      } catch {
+        // ignore malformed entry
+      }
+    }
+    chrome.runtime?.sendMessage?.({ type: 'CHECKVOCA_AUTH_PING', origin: location.origin, hasAuth, uid, email });
   } catch {
     // ignore
   }

@@ -15,7 +15,7 @@ type WordEntry = {
 
 const isKorean = (s: string) => /[\uAC00-\uD7A3]/.test(s);
 
-const ENABLE_KO_DICT = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_ENABLE_KO_DICT) !== "0";
+const ENABLE_KO_DICT = (import.meta as any).env?.VITE_ENABLE_KO_DICT !== "0";
 
 async function fetchFromKoDict(word: string): Promise<{ definitions: string[]; phonetic?: string; audioUrl?: string } | null> {
   if (!ENABLE_KO_DICT) return null;
@@ -28,15 +28,6 @@ async function fetchFromKoDict(word: string): Promise<{ definitions: string[]; p
   } catch { return null; }
 }
 
-interface DictPhonetic { text?: string; audio?: string }
-interface DictMeaningDef { definition?: string }
-interface DictMeaning { definitions?: DictMeaningDef[] }
-interface DictEntry {
-  phonetic?: string;
-  phonetics?: DictPhonetic[];
-  meanings?: DictMeaning[];
-}
-
 async function fetchFromDictionaryApi(
   word: string
 ): Promise<{ definitions: string[]; phonetic?: string; audioUrl?: string } | null> {
@@ -45,11 +36,11 @@ async function fetchFromDictionaryApi(
       `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
     );
     if (!res.ok) return null;
-    const arr = (await res.json()) as unknown as DictEntry[];
+    const arr = (await res.json()) as any[];
     if (!Array.isArray(arr) || !arr[0]) return null;
-    const entry: DictEntry = arr[0];
-    const phonetic: string | undefined = entry.phonetics?.find((p) => p.text)?.text || entry.phonetic;
-    const audioUrl: string | undefined = entry.phonetics?.find((p) => p.audio)?.audio;
+    const entry = arr[0];
+    const phonetic: string | undefined = entry.phonetics?.find((p: any) => p?.text)?.text || entry.phonetic;
+    const audioUrl: string | undefined = entry.phonetics?.find((p: any) => p?.audio)?.audio;
     const defs: string[] = [];
     for (const m of entry.meanings ?? []) {
       for (const d of m.definitions ?? []) {
@@ -65,9 +56,9 @@ async function fetchFromDictionaryApi(
 function useBootstrapFromSnapshot(): void {
   useEffect(() => {
     const PENDING_KEY = 'CHECKVOCA_PENDING_SNAPSHOT';
-    const storePending = (data: unknown) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch { /* ignore */ } };
+    const storePending = (data: any) => { try { localStorage.setItem(PENDING_KEY, JSON.stringify(data)); } catch { /* ignore */ } };
     const PENDING_SEL_KEY = 'CHECKVOCA_PENDING_SELECTION';
-    const storePendingSelection = (data: unknown) => { try { localStorage.setItem(PENDING_SEL_KEY, JSON.stringify(data)); } catch { /* ignore */ } };
+    const storePendingSelection = (data: any) => { try { localStorage.setItem(PENDING_SEL_KEY, JSON.stringify(data)); } catch { /* ignore */ } };
     const hash = typeof location !== "undefined" ? location.hash : "";
     const m = hash.match(/snapshot=([^&]+)/);
     if (m) {
@@ -79,23 +70,15 @@ function useBootstrapFromSnapshot(): void {
     }
 
     // Also support extension handoff via postMessage
-    function isTypedMessage(x: unknown): x is { type: string; payload?: unknown } {
-      if (typeof x !== 'object' || x === null) return false;
-      const r = x as Record<string, unknown>;
-      return typeof r.type === 'string';
-    }
-
     function onMessage(ev: MessageEvent) {
       try {
         if (ev.source !== window) return;
-        const d: unknown = ev.data;
-        if (!isTypedMessage(d)) return;
-        const type = d.type;
-        const payload = d.payload;
-        if (type === 'CHECKVOCA_SNAPSHOT') {
-          storePending(payload);
-        } else if (type === 'CHECKVOCA_SELECTION') {
-          storePendingSelection(payload);
+        const d: any = ev.data;
+        if (!d || !d.payload) return;
+        if (d.type === 'CHECKVOCA_SNAPSHOT') {
+          storePending(d.payload);
+        } else if (d.type === 'CHECKVOCA_SELECTION') {
+          storePendingSelection(d.payload);
         }
       } catch { /* ignore */ }
     }
@@ -136,7 +119,7 @@ export function QuizPage() {
         });
       }
     } catch { /* ignore */ }
-  }, [auth]);
+  }, [auth?.user]);
 
   // Handle action from extension: login gate → sync → action
   useEffect(() => {
@@ -195,8 +178,7 @@ export function QuizPage() {
           if (raw) {
             const payload = JSON.parse(raw);
             const mod = await import('@core');
-            const api = mod as unknown as { registerSelection: (p: { id?: string; word: string; context?: string; [k: string]: unknown }) => Promise<void> };
-            await api.registerSelection(payload);
+            await (mod as any).registerSelection(payload);
             localStorage.removeItem(PENDING_SEL_KEY);
             window.dispatchEvent(new CustomEvent('checkvoca:selection-imported'));
             showToast('단어를 추가했습니다');
@@ -259,7 +241,7 @@ export function QuizPage() {
       showToast("단어장을 가져와 동기화했어요");
     window.addEventListener('checkvoca:snapshot-imported', handler);
     return () => window.removeEventListener('checkvoca:snapshot-imported', handler);
-  }, [auth?.user]);
+  }, [auth?.user?.uid]);
 
   // Auto cloud sync once after login (best-effort)
   useEffect(() => {
@@ -275,7 +257,7 @@ export function QuizPage() {
         showToast("Cloud sync failed", 2600);
       }
     })();
-  }, [auth?.user]);
+  }, [auth?.user?.uid]);
   // Best-effort enrichment for items without definitions
   useEffect(() => {
     (async () => {
@@ -309,7 +291,7 @@ export function QuizPage() {
     try {
       if (card?.id) {
         const updated = await applySm2Review(card.id, g);
-        if (auth?.user) await upsertReviewState(auth.user.uid, updated as unknown as { id: string; [k: string]: unknown });
+        if (auth?.user) await upsertReviewState(auth.user.uid, updated as any);
       }
     } catch { /* ignore */ }
     next();
@@ -376,7 +358,7 @@ export function QuizPage() {
             <a href="/words" style={{ marginLeft: 'auto' }}><button>단어장 보기</button></a>
             <button
               className="secondary"
-              onClick={() => { try { localStorage.setItem('CHECKVOCA_QUIZ_INTRO_DISMISSED','1'); } catch { /* ignore */ } setShowIntro(false); }}
+              onClick={() => { try { localStorage.setItem('CHECKVOCA_QUIZ_INTRO_DISMISSED','1'); } catch {} setShowIntro(false); }}
               style={{ background: 'transparent', border: '1px solid rgba(0,0,0,0.1)' }}
             >닫기</button>
           </div>

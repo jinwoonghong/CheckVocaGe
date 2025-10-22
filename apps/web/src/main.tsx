@@ -2,7 +2,7 @@
 import { Route, Router } from 'wouter-preact';
 import { useEffect } from 'preact/hooks';
 import { QuizPage } from './pages/Quiz';
-import { WordsPage } from './pages/Words';
+import { WordsPage } from './pages/Words2';
 import { AuthContext, useProvideAuth } from './auth/firebase';
 
 function Home() {

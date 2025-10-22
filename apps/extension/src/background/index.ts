@@ -171,7 +171,7 @@ type InMessage =
   | { type: 'CHECKVOCA_SELECTION'; payload: SelectionPayload }
   | { type: 'CHECKVOCA_LOOKUP'; word: string }
   | { type: 'CHECKVOCA_EXPORT_CSV' }
-  | { type: 'CHECKVOCA_AUTH_PING'; origin?: string; hasAuth?: boolean }
+  | { type: 'CHECKVOCA_AUTH_PING'; origin?: string; hasAuth?: boolean; uid?: string; email?: string }
   | { type: string; [k: string]: unknown };
 
 chrome.runtime?.onMessage?.addListener((message: unknown, _sender, sendResponse) => {
@@ -196,8 +196,13 @@ chrome.runtime?.onMessage?.addListener((message: unknown, _sender, sendResponse)
       }
       if (msg?.type === 'CHECKVOCA_AUTH_PING') {
         try {
-          const hasAuth = Boolean((msg as any).hasAuth);
-          const origin = String((msg as any).origin || '');
+          const rec = msg as Record<string, unknown>;
+          const hasAuth = Boolean(rec.hasAuth);
+          const origin = String(rec.origin || '');
+          const uidRaw = rec.uid;
+          const emailRaw = rec.email;
+          const uid = typeof uidRaw === 'string' ? uidRaw.trim() || undefined : undefined;
+          const email = typeof emailRaw === 'string' ? emailRaw.trim() || undefined : undefined;
           // Compare against configured web base
           const base = await new Promise<string>((resolve) => {
             try {
@@ -210,7 +215,17 @@ chrome.runtime?.onMessage?.addListener((message: unknown, _sender, sendResponse)
             try { return base ? new URL(base).origin : 'https://checkvocage.web.app'; } catch { return 'https://checkvocage.web.app'; }
           })();
           if (origin === expectedOrigin) {
-            try { chrome.storage?.local?.set({ webAuthStatus: hasAuth }); } catch { /* ignore */ }
+            try {
+              const payload: Record<string, unknown> = { webAuthStatus: hasAuth };
+              if (hasAuth) {
+                payload.webAuthUid = uid ?? null;
+                payload.webAuthEmail = email ?? null;
+              } else {
+                payload.webAuthUid = null;
+                payload.webAuthEmail = null;
+              }
+              chrome.storage?.local?.set(payload);
+            } catch { /* ignore */ }
           }
         } catch { /* ignore */ }
         sendResponse({ status: 'ok' });
@@ -240,10 +255,10 @@ function toCsvCell(value: unknown): string {
 async function exportCsvAndDownload(): Promise<void> {
   const { getDatabase } = await import('@core');
   const db = getDatabase();
-  const rows = await db.wordEntries.orderBy('createdAt').toArray();
+  const rows = (await db.wordEntries.orderBy('createdAt').toArray()) as import('@core').WordEntry[];
   const header = ['word', 'context', 'url', 'createdAt', 'sourceTitle', 'language', 'isFavorite', 'note'];
   const lines = [header.join(',')];
-  for (const r of rows as any[]) {
+  for (const r of rows) {
     lines.push(
       [
         toCsvCell(r.word),

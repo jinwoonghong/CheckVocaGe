@@ -13,7 +13,7 @@ import {
   importSnapshot as importRepositorySnapshot,
 } from '../storage/repository';
 import { getDatabase } from '../storage/db';
-import type { ReviewState } from '../models';
+import type { ReviewState, ReviewHistoryItem } from '../models';
 import { publishCacheEvent } from '../utils/broadcast';
 
 export async function registerSelection(payload: SelectionPayload): Promise<WordEntry> {
@@ -80,7 +80,7 @@ function applySm2(state: ReviewState, grade: ReviewGrade): ReviewState {
     repetitions,
     interval,
     nextReviewAt: reviewedAt + days(interval),
-    history: [...state.history, { reviewedAt, grade } as any],
+    history: [...state.history, { reviewedAt, grade } as ReviewHistoryItem],
   };
 }
 
