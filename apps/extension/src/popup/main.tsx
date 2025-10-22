@@ -425,6 +425,10 @@ function App() {
         <button class="secondary" onClick={sendSnapshotToWeb}>모바일로 보내기(스냅샷)</button>
         <button
           class="secondary"
+          onClick={() => { try { chrome.runtime?.openOptionsPage?.(); } catch { /* ignore */ } }}
+        >Pro 설정 열기</button>
+        <button
+          class="secondary"
           onClick={() => {
             if (adLeft > 0) return;
             setAdLeft(5);

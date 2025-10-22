@@ -9,7 +9,7 @@ import { buildPageStats, rankTerms } from '@core';
 type Density = 'low' | 'medium' | 'high';
 type FamiliarityMap = { [word: string]: number };
 
-const EXCLUDE_SELECTOR = 'script,style,code,pre,textarea,input,select,button,[contenteditable]';
+const EXCLUDE_SELECTOR = 'script,style,code,pre,textarea,input,select,button,[contenteditable],.cv-pro-hl';
 
 function collectVisibleText(root: Document | HTMLElement): string {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -128,4 +128,16 @@ export async function initProHighlighter(getUserWords: () => Promise<string[]>, 
       obs.observe(doc.body, { childList: true, subtree: true, characterData: true });
     } catch { /* ignore */ }
   }
+}
+
+export function clearProHighlights(root: Document | HTMLElement = document): void {
+  const doc = root instanceof Document ? root : root.ownerDocument || document;
+  const nodes = (root as HTMLElement).querySelectorAll?.('.cv-pro-hl');
+  if (!nodes) return;
+  nodes.forEach((span) => {
+    const parent = span.parentNode;
+    if (!parent) return;
+    parent.replaceChild(doc.createTextNode((span as HTMLElement).textContent || ''), span);
+    parent.normalize?.();
+  });
 }
