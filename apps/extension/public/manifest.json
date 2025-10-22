@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "WebVoca",
   "description": "Capture vocabulary from the web and review with SRS.",
-  "version": "1.2.1",
+  "version": "1.9.9",
   "action": {
     "default_title": "WebVoca",
     "default_popup": "src/popup/index.html"
