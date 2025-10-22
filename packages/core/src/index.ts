@@ -7,3 +7,4 @@ export * from './utils/text';
 export * from './utils/id';
 export * from './utils/broadcast';
 export * from './pro/highlight';
+export * from './pro/settings';
