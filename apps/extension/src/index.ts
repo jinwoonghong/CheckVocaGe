@@ -222,3 +222,16 @@ try {
 } catch {
   // ignore
 }
+
+// Pro: conditionally initialize highlighter (2.0.0 only)
+try {
+  chrome.storage?.sync?.get({ proHighlightEnabled: false }, (items) => {
+    if (items?.proHighlightEnabled) {
+      import('./content/pro-bootstrap')
+        .then((m) => m.maybeInitProHighlighter())
+        .catch(() => void 0);
+    }
+  });
+} catch {
+  // ignore
+}
