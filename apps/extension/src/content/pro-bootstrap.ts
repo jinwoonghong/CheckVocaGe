@@ -3,7 +3,7 @@
   You can call `maybeInitProHighlighter()` from 2.0.0 content entry to enable.
 */
 import { getDatabase } from '@core';
-import { initProHighlighter, type HighlighterOptions } from './pro-highlighter';
+import { initProHighlighter, clearProHighlights, type HighlighterOptions } from './pro-highlighter';
 import { buildFamiliarityMap, isDomainAllowed } from '@core';
 
 type Density = 'low' | 'medium' | 'high';
@@ -57,6 +57,26 @@ export async function maybeInitProHighlighter(): Promise<void> {
     const host = location.hostname;
     if (!isDomainAllowed(host, settings)) return;
   } catch { /* ignore and proceed */ }
-  const opts: HighlighterOptions = { density: settings.proHighlightDensity } as any;
+  const opts: HighlighterOptions = {
+    density: settings.proHighlightDensity,
+    observeMutations: settings.observeMutations ?? true,
+    maxHighlights: settings.maxHighlights ?? 60,
+    theme: settings.theme ?? 'gold',
+  } as any;
   await initProHighlighter(getUserWords, getFamiliarity, opts);
+
+  // React to runtime settings changes (enable/disable)
+  try {
+    chrome.storage?.onChanged?.addListener((changes, area) => {
+      if (area !== 'sync') return;
+      if (Object.prototype.hasOwnProperty.call(changes, 'proHighlightEnabled')) {
+        const nv = Boolean(changes.proHighlightEnabled.newValue);
+        if (!nv) {
+          clearProHighlights(document);
+        } else {
+          initProHighlighter(getUserWords, getFamiliarity, opts).catch(() => void 0);
+        }
+      }
+    });
+  } catch { /* ignore */ }
 }

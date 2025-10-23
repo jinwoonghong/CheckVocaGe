@@ -1,5 +1,5 @@
 /// <reference types="chrome" />
-import type { Density, ProSettings } from '@core';
+import type { Density, ProSettings, Theme } from '@core';
 import { DEFAULT_SETTINGS } from '@core';
 
 export async function loadProSettings(): Promise<ProSettings> {
@@ -13,6 +13,9 @@ export async function loadProSettings(): Promise<ProSettings> {
             : 'low',
           whitelist: Array.isArray(items?.whitelist) ? (items?.whitelist as string[]) : [],
           blacklist: Array.isArray(items?.blacklist) ? (items?.blacklist as string[]) : [],
+          maxHighlights: Number.isFinite(items?.maxHighlights as number) ? (items?.maxHighlights as number) : DEFAULT_SETTINGS.maxHighlights,
+          observeMutations: typeof items?.observeMutations === 'boolean' ? Boolean(items?.observeMutations) : DEFAULT_SETTINGS.observeMutations,
+          theme: (['gold','underline','blue','high-contrast'] as Theme[]).includes(items?.theme as Theme) ? (items?.theme as Theme) : DEFAULT_SETTINGS.theme,
         };
         resolve(out);
       });

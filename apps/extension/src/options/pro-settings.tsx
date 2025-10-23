@@ -1,6 +1,6 @@
 import { render } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import type { ProSettings, Density } from '@core';
+import type { ProSettings, Density, Theme } from '@core';
 import { loadProSettings, saveProSettings } from '../pro/settings';
 
 function App() {
@@ -53,7 +53,42 @@ function App() {
         </div>
       </div>
       <div class="row">
-        <button onClick={async () => { await saveProSettings({ whitelist: s.whitelist, blacklist: s.blacklist }); }}>저장</button>
+        <label style={{ minWidth: 160 }}>최대 하이라이트 수</label>
+        <input type="number" min={10} max={400} value={s.maxHighlights ?? 60} onInput={(e) => {
+          const v = parseInt((e.target as HTMLInputElement).value, 10);
+          setS({ ...s, maxHighlights: isNaN(v) ? 60 : v });
+        }} />
+      </div>
+      <div class="row">
+        <label style={{ minWidth: 160 }}>동적 페이지 대응</label>
+        <input type="checkbox" checked={s.observeMutations ?? true} onChange={(e) => {
+          const v = (e.target as HTMLInputElement).checked;
+          setS({ ...s, observeMutations: v });
+        }} />
+        <small>DOM 변경 감지 후 재적용</small>
+      </div>
+      <div class="row">
+        <label style={{ minWidth: 160 }}>테마</label>
+        <select value={s.theme ?? 'gold'} onChange={(e) => {
+          const v = (e.target as HTMLSelectElement).value as Theme;
+          setS({ ...s, theme: v });
+        }}>
+          <option value="gold">골드(기본)</option>
+          <option value="underline">밑줄</option>
+          <option value="blue">블루</option>
+          <option value="high-contrast">고대비</option>
+        </select>
+      </div>
+      <div class="row">
+        <button onClick={async () => { await saveProSettings({
+          proHighlightEnabled: s.proHighlightEnabled,
+          proHighlightDensity: s.proHighlightDensity,
+          whitelist: s.whitelist,
+          blacklist: s.blacklist,
+          maxHighlights: s.maxHighlights,
+          observeMutations: s.observeMutations,
+          theme: s.theme,
+        }); }}>저장</button>
       </div>
     </div>
   );

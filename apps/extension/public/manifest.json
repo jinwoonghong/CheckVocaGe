@@ -23,6 +23,7 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "options_page": "src/options/pro-settings.html",
   "content_scripts": [
     {
       "matches": [
