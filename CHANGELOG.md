@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0
+- Pro: 페이지 내 하이라이트 기능(사용자 단어/낯섦·중요도 기반)
+  - 도메인 화이트/블랙리스트, 밀도 조절, 최대 하이라이트 수 제한
+  - 동적 페이지 대응(MutationObserver), 테마(gold/underline/blue/high-contrast)
+  - 옵션 페이지 연결(manifest options_page), 팝업에서 옵션 바로가기
+- Core: tokenizer/ranker/familiarity/settings 추가, 유닛 테스트 포함
+- Extension: Pro 부트스트랩(도메인 게이트·설정 변경 반영·클리어), 하이라이터 이벤트 훅
+- CI/빌드: 확장 옵션 페이지 번들 빌드 단계 추가
+
 ## 1.2.3
 - Web: 단어장(/words) 로그인 필수로 변경, Firestore 기준으로만 목록 표시.
 - Web: 단어 삭제는 즉시 Firestore에서 제거(오프라인 삭제 큐 제거).
@@ -31,4 +40,3 @@
 - 문서/ID 정리, undefined 핸들링, Firestore Rules 배포.
 - 국어사전 옵션 + VITE_ENABLE_KO_DICT 토글.
 - 단어 목록 화면에서 상세 화면 이동 버튼 추가.
-
