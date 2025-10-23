@@ -11,6 +11,9 @@ type Density = 'low' | 'medium' | 'high';
 interface ProSettings {
   proHighlightEnabled: boolean;
   proHighlightDensity: Density;
+  observeMutations?: boolean;
+  maxHighlights?: number;
+  theme?: 'gold' | 'underline' | 'blue' | 'high-contrast';
 }
 
 async function loadSettings(): Promise<ProSettings> {

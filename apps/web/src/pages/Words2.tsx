@@ -8,12 +8,15 @@ import {
   getQuizPreference,
   setQuizPreference,
   deleteWord,
+  deleteWords,
   setWordTags,
   getSavedFilters,
   setSavedFilters,
   type SavedFilter,
   type QuizMode,
 } from '../db/firestore';
+import { exportSnapshot } from '@core';
+import { upsertSnapshotToFirestore } from '../db/firestore';
 
 type WordRow = { id: string; word: string; context?: string; includeInQuiz?: boolean; tags?: string[] };
 
@@ -192,6 +195,33 @@ export function WordsPage() {
           <button onClick={() => setSelectionAll(false)} disabled={loading}>전체해제</button>
           <button onClick={() => bulkInclude(true)} disabled={loading}>포함 설정</button>
           <button onClick={() => bulkInclude(false)} disabled={loading}>제외 설정</button>
+          <button
+            className="secondary"
+            disabled={loading || selectedIds.length === 0}
+            onClick={async () => {
+              if (!auth?.user) return;
+              const ids = selectedIds;
+              if (ids.length === 0) return;
+              if (!confirm(`${ids.length}개 항목을 삭제할까요?`)) return;
+              await withProgress(async () => {
+                setRows((prev) => prev.filter((r) => !ids.includes(r.id)));
+                try { await deleteWords(auth.user!.uid, ids); } catch { /* ignore */ }
+                setSelected({});
+              });
+            }}
+          >선택 삭제</button>
+          <button
+            className="secondary"
+            disabled={loading || !auth?.user}
+            onClick={async () => {
+              if (!auth?.user) return;
+              await withProgress(async () => {
+                const snapshot = await exportSnapshot();
+                await upsertSnapshotToFirestore(auth.user!.uid, snapshot as any);
+                try { const cloud = (await fetchUserWords(auth.user!.uid, 500)) as WordRow[]; setRows(cloud); } catch { /* ignore */ }
+              });
+            }}
+          >동기화(로컬→클라우드)</button>
         </div>
       </div>
 
