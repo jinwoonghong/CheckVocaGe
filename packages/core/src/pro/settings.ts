@@ -1,10 +1,14 @@
 export type Density = 'low' | 'medium' | 'high';
+export type Theme = 'gold' | 'underline' | 'blue' | 'high-contrast';
 
 export interface ProSettings {
   proHighlightEnabled: boolean;
   proHighlightDensity: Density;
   whitelist?: string[]; // domains to enable
   blacklist?: string[]; // domains to disable
+  maxHighlights?: number; // per page cap
+  observeMutations?: boolean; // dynamic re-apply on DOM changes
+  theme?: Theme; // color/accessibility theme
 }
 
 export const DEFAULT_SETTINGS: ProSettings = {
@@ -12,6 +16,9 @@ export const DEFAULT_SETTINGS: ProSettings = {
   proHighlightDensity: 'low',
   whitelist: [],
   blacklist: [],
+  maxHighlights: 60,
+  observeMutations: true,
+  theme: 'gold',
 };
 
 export function isDomainAllowed(hostname: string, s: ProSettings): boolean {
@@ -31,4 +38,3 @@ function matchDomain(host: string, pattern: string): boolean {
   }
   return host === p;
 }
-

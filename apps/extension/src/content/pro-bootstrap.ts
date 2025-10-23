@@ -57,7 +57,12 @@ export async function maybeInitProHighlighter(): Promise<void> {
     const host = location.hostname;
     if (!isDomainAllowed(host, settings)) return;
   } catch { /* ignore and proceed */ }
-  const opts: HighlighterOptions = { density: settings.proHighlightDensity, observeMutations: true } as any;
+  const opts: HighlighterOptions = {
+    density: settings.proHighlightDensity,
+    observeMutations: settings.observeMutations ?? true,
+    maxHighlights: settings.maxHighlights ?? 60,
+    theme: settings.theme ?? 'gold',
+  } as any;
   await initProHighlighter(getUserWords, getFamiliarity, opts);
 
   // React to runtime settings changes (enable/disable)
