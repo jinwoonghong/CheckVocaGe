@@ -16,6 +16,7 @@ type WordEntry = {
 const isKorean = (s: string) => /[\uAC00-\uD7A3]/.test(s);
 
 const ENABLE_KO_DICT = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_ENABLE_KO_DICT) !== "0";
+const AUTO_CLOUD_SYNC = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_AUTO_CLOUD_SYNC) === '1';
 
 async function fetchFromKoDict(word: string): Promise<{ definitions: string[]; phonetic?: string; audioUrl?: string } | null> {
   if (!ENABLE_KO_DICT) return null;
@@ -329,22 +330,24 @@ export function QuizPage() {
           } catch { /* ignore */ }
         }
         setWords(merged);
-        // best-effort cloud sync immediately after import
-        try {
-          if (auth?.user) {
-            const snapshot = await exportSnapshot();
-            await upsertSnapshotToFirestore(auth.user.uid, snapshot);
-          }
-        } catch { /* ignore */ }
+        // optional cloud sync immediately after import (local-first default: disabled)
+        if (AUTO_CLOUD_SYNC) {
+          try {
+            if (auth?.user) {
+              const snapshot = await exportSnapshot();
+              await upsertSnapshotToFirestore(auth.user.uid, snapshot);
+            }
+          } catch { /* ignore */ }
+        }
       })();
     };
     window.addEventListener('checkvoca:selection-imported', handler);
     return () => window.removeEventListener('checkvoca:selection-imported', handler);
   }, [auth?.user]);
 
-  // Auto cloud sync once after login (best-effort)
+  // Optional auto cloud sync once after login (default disabled)
   useEffect(() => {
-    // no-op
+    if (!AUTO_CLOUD_SYNC) return;
     (async () => {
       if (!auth?.user || didSyncRef.current) return;
       try {
