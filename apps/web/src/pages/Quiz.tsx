@@ -384,6 +384,18 @@ export function QuizPage() {
   }, [words]);
 
   const card = useMemo(() => words[index], [words, index]);
+
+  // Record view count whenever a new card is shown
+  useEffect(() => {
+    (async () => {
+      try {
+        const id = card?.id;
+        if (!id) return;
+        const { recordWordView } = await import('@core');
+        await recordWordView(id);
+      } catch { /* ignore */ }
+    })();
+  }, [card?.id]);
   const next = () => {
     setShowAnswer(false);
     setIndex((i) => (words.length ? (i + 1) % words.length : 0));

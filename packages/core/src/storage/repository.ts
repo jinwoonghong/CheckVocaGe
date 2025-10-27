@@ -31,6 +31,7 @@ function mergeWord(existing: WordEntry, payload: SelectionPayload): WordEntry {
     url: payload.url,
     selectionRange: payload.selectionRange,
     updatedAt: now(),
+    viewCount: existing.viewCount ?? 0,
     sourceTitle: payload.clientMeta.title,
     language: payload.clientMeta.language,
     tags: payload.tags ?? existing.tags,
@@ -60,6 +61,7 @@ export async function upsertWordWithContext(payload: SelectionPayload): Promise<
         selectionRange: payload.selectionRange,
         createdAt: now(),
         updatedAt: now(),
+        viewCount: 0,
         sourceTitle: payload.clientMeta.title,
         language: payload.clientMeta.language,
         tags: payload.tags ?? [],
@@ -130,6 +132,19 @@ export async function recordPendingFailure(request: PendingRequest): Promise<voi
 export async function saveQuizSession(session: QuizSession): Promise<void> {
   const db = getDatabase();
   await db.quizSessions.put(session);
+}
+
+export async function recordWordView(wordId: string): Promise<void> {
+  const db = getDatabase();
+  const rec = await db.wordEntries.get(wordId);
+  const t = now();
+  if (!rec) return;
+  const vc = typeof rec.viewCount === 'number' ? rec.viewCount : 0;
+  await db.wordEntries.update(wordId, {
+    viewCount: vc + 1,
+    lastViewedAt: t,
+    updatedAt: t,
+  });
 }
 
 export async function exportSnapshot(): Promise<Record<string, unknown>> {

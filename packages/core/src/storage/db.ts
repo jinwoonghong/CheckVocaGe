@@ -26,7 +26,8 @@ export class CheckVocaDatabase extends Dexie {
   constructor() {
     super(DB_NAME);
     this.version(DB_VERSION).stores({
-      [STORE_WORD_ENTRIES]: '&id, normalizedWord, url, createdAt',
+      // added indexes: updatedAt, lastViewedAt for syncing/analytics
+      [STORE_WORD_ENTRIES]: '&id, normalizedWord, url, createdAt, updatedAt, lastViewedAt',
       [STORE_REVIEW_STATES]: '&id, wordId, nextReviewAt',
       [STORE_PENDING_REQUESTS]: '&id, status, createdAt',
       [STORE_QUIZ_SESSIONS]: '&id, startedAt',

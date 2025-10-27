@@ -16,6 +16,9 @@ export interface WordEntry {
   selectionRange: SelectionRangeSnapshot;
   createdAt: number;
   updatedAt: number;
+  // Usage metrics
+  viewCount?: number; // how many times surfaced/viewed in quiz or list
+  lastViewedAt?: number; // last time shown to user
   sourceTitle: string;
   language: string;
   tags: string[];

@@ -9,6 +9,7 @@ import {
   saveReviewState,
   saveQuizSession,
   upsertWordWithContext,
+  recordWordView as recordWordViewRepository,
   exportSnapshot as exportRepositorySnapshot,
   importSnapshot as importRepositorySnapshot,
 } from '../storage/repository';
@@ -48,6 +49,7 @@ export const saveReviewStateRecord = saveReviewState;
 export const saveQuizSessionRecord = saveQuizSession;
 export const exportSnapshot = exportRepositorySnapshot;
 export const importSnapshot = importRepositorySnapshot;
+export const recordWordView = recordWordViewRepository;
 
 export type ReviewGrade = 0 | 1 | 2 | 3 | 4 | 5;
 
