@@ -117,6 +117,12 @@ export function QuizPage() {
   const [showIntro, setShowIntro] = useState<boolean>(() => {
     try { return localStorage.getItem('CHECKVOCA_QUIZ_INTRO_DISMISSED') !== '1'; } catch { return true; }
   });
+  const [showDebug, setShowDebug] = useState<boolean>(() => {
+    try {
+      const q = typeof location !== 'undefined' ? location.search : '';
+      return new URLSearchParams(q).get('debug') === '1';
+    } catch { return false; }
+  });
 
   function showToast(message: string, durationMs = 2200) {
     setToast(message);
@@ -137,6 +143,48 @@ export function QuizPage() {
       }
     } catch { /* ignore */ }
   }, [auth]);
+
+  // Toggle debug with Ctrl+D (or Cmd+D on macOS)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      try {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+          e.preventDefault();
+          setShowDebug((v) => !v);
+        }
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Mount debug panel as a portal when enabled
+  useEffect(() => {
+    if (!showDebug) return;
+    let disposed = false;
+    const el = document.createElement('div');
+    el.id = 'checkvoca-debug-panel-root';
+    document.body.appendChild(el);
+    (async () => {
+      try {
+        const m = await import('../components/debug-panel');
+        if (disposed) return;
+        const { h, render } = await import('preact');
+        const onClose = () => setShowDebug(false);
+        if ((m as any).DebugPanel) {
+          render(h((m as any).DebugPanel, { onClose }), el);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => {
+      try {
+        import('preact').then(({ render }) => {
+          try { render(null as any, el); } catch { /* ignore */ }
+          try { el.remove(); } catch { /* ignore */ }
+        });
+      } catch { /* ignore */ }
+    };
+  }, [showDebug]);
 
   // Handle action from extension: login gate → sync → action
   useEffect(() => {
@@ -259,6 +307,39 @@ export function QuizPage() {
       showToast("단어장을 가져와 동기화했어요");
     window.addEventListener('checkvoca:snapshot-imported', handler);
     return () => window.removeEventListener('checkvoca:snapshot-imported', handler);
+  }, [auth?.user]);
+
+  // Reload list after single selection import (from extension)
+  useEffect(() => {
+    const handler = () => {
+      (async () => {
+        const due = (await fetchDueReviews()) as WordEntry[];
+        let local = due;
+        if (!local.length) {
+          const db = getDatabase();
+          local = (await db.wordEntries.orderBy('createdAt').reverse().limit(50).toArray()) as WordEntry[];
+        }
+        let merged = local;
+        if (auth?.user) {
+          try {
+            const cloudWords = (await fetchUserWords(auth.user.uid, 200)) as WordEntry[];
+            const seen = new Set(local.map((w) => w.id));
+            const append = cloudWords.filter((w) => !seen.has(w.id));
+            merged = [...local, ...append];
+          } catch { /* ignore */ }
+        }
+        setWords(merged);
+        // best-effort cloud sync immediately after import
+        try {
+          if (auth?.user) {
+            const snapshot = await exportSnapshot();
+            await upsertSnapshotToFirestore(auth.user.uid, snapshot);
+          }
+        } catch { /* ignore */ }
+      })();
+    };
+    window.addEventListener('checkvoca:selection-imported', handler);
+    return () => window.removeEventListener('checkvoca:selection-imported', handler);
   }, [auth?.user]);
 
   // Auto cloud sync once after login (best-effort)

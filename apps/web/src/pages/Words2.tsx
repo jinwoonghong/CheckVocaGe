@@ -30,6 +30,7 @@ export function WordsPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [tagInput, setTagInput] = useState<string>('');
   const [filters, setFilters] = useState<SavedFilter[]>([]);
+  const [removeTagInput, setRemoveTagInput] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -124,6 +125,34 @@ export function WordsPage() {
     try { if (!auth?.user) return; for (const id of ids) await setWordIncludeInQuiz(auth.user.uid, id, include); } catch { /* ignore */ }
   });
 
+  function toCsvCell(value: unknown): string {
+    const s = String(value ?? '');
+    const needs = /[",\n]/.test(s);
+    const esc = s.replace(/"/g, '""');
+    return needs ? `"${esc}"` : esc;
+  }
+
+  const exportCsv = () => {
+    const ids = selectedIds.length ? selectedIds : filtered.map((r) => r.id);
+    const target = rows.filter((r) => ids.includes(r.id));
+    const header = ['word','context','tags','includeInQuiz'];
+    const lines = [header.join(',')];
+    for (const r of target) {
+      lines.push([
+        toCsvCell(r.word),
+        toCsvCell(r.context ?? ''),
+        toCsvCell((r.tags ?? []).join(' ')),
+        toCsvCell(r.includeInQuiz !== false ? '1' : '0'),
+      ].join(','));
+    }
+    const csv = lines.join('\n');
+    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `words_export_${Date.now()}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  };
+
   const remove = async (id: string) => {
     if (!confirm('이 단어를 삭제할까요?')) return;
     setRows((prev) => prev.filter((r) => r.id !== id));
@@ -178,6 +207,25 @@ export function WordsPage() {
             style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)' }}
           />
           <button onClick={applyTags} disabled={loading}>태그 적용</button>
+          <input
+            value={removeTagInput}
+            onInput={(e: JSX.TargetedEvent<HTMLInputElement, Event>) => setRemoveTagInput(e.currentTarget.value)}
+            placeholder='태그 제거'
+            style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)' }}
+          />
+          <button onClick={async () => {
+            const tag = removeTagInput.trim();
+            if (!tag) return;
+            const ids = selectedIds.length ? selectedIds : filtered.map((r) => r.id);
+            if (ids.length === 0) return;
+            setRows((prev) => prev.map((r) => (ids.includes(r.id) ? { ...r, tags: (r.tags ?? []).filter((t) => t !== tag) } : r)));
+            try { if (!auth?.user) return; for (const id of ids) {
+              const current = rows.find((x) => x.id === id)?.tags ?? [];
+              const next = current.filter((t) => t !== tag);
+              await setWordTags(auth.user.uid, id, next);
+            } } catch { /* ignore */ }
+            setRemoveTagInput('');
+          }} disabled={loading}>태그 제거</button>
           <select
             onChange={(e: JSX.TargetedEvent<HTMLSelectElement, Event>) => {
               const f = filters.find((x) => x.id === e.currentTarget.value);
@@ -195,6 +243,7 @@ export function WordsPage() {
           <button onClick={() => setSelectionAll(false)} disabled={loading}>전체해제</button>
           <button onClick={() => bulkInclude(true)} disabled={loading}>포함 설정</button>
           <button onClick={() => bulkInclude(false)} disabled={loading}>제외 설정</button>
+          <button onClick={exportCsv} className='secondary' disabled={loading}>CSV 내보내기</button>
           <button
             className="secondary"
             disabled={loading || selectedIds.length === 0}
